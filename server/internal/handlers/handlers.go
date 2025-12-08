@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 	"voting-backend/internal/db"
 	"voting-backend/internal/models"
@@ -59,6 +61,84 @@ func GetCandidates(c *gin.Context) {
 	c.JSON(http.StatusOK, candidates)
 }
 
+func UploadVerification(c *gin.Context) {
+	nim := c.PostForm("nim")
+	if nim == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "NIM is required"})
+		return
+	}
+
+	profileFile, err1 := c.FormFile("profile_image")
+	ktmFile, err2 := c.FormFile("ktm_image")
+
+	if err1 != nil || err2 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Both profile and KTM images are required"})
+		return
+	}
+
+	// Create uploads directory if not exists (handled by SaveUploadedFile usually or manual check, assuming folder exists or created in main)
+
+	profilePath := fmt.Sprintf("uploads/%s_profile%s", nim, filepath.Ext(profileFile.Filename))
+	ktmPath := fmt.Sprintf("uploads/%s_ktm%s", nim, filepath.Ext(ktmFile.Filename))
+
+	if err := c.SaveUploadedFile(profileFile, profilePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profile image"})
+		return
+	}
+	if err := c.SaveUploadedFile(ktmFile, ktmPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save KTM image"})
+		return
+	}
+
+	var user models.User
+	if err := db.DB.Where("nim = ?", nim).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	user.ProfileImage = profilePath
+	user.KTMImage = ktmPath
+	user.VerificationStatus = "pending"
+	db.DB.Save(&user)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Verification uploaded successfully", "user": user})
+}
+
+func GetPendingVerifications(c *gin.Context) {
+	var users []models.User
+	db.DB.Where("verification_status = ?", "pending").Find(&users)
+	c.JSON(http.StatusOK, users)
+}
+
+func VerifyUser(c *gin.Context) {
+	var req struct {
+		UserID uint   `json:"userId"`
+		Action string `json:"action"` // 'approve' or 'reject'
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var user models.User
+	if err := db.DB.First(&user, req.UserID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if req.Action == "approve" {
+		user.VerificationStatus = "approved"
+	} else if req.Action == "reject" {
+		user.VerificationStatus = "rejected"
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid action"})
+		return
+	}
+
+	db.DB.Save(&user)
+	c.JSON(http.StatusOK, gin.H{"message": "User verification status updated", "user": user})
+}
+
 func Vote(c *gin.Context) {
 	var req struct {
 		UserID      uint `json:"userId"`
@@ -114,10 +194,12 @@ func GetResults(c *gin.Context) {
 	var results []Result
 
 	// Join candidates and votes to get counts
-	// This query counts votes for each candidate
+	// Only count votes from users with verification_status = 'approved'
 	db.DB.Table("candidates").
 		Select("candidates.id as candidate_id, candidates.name, count(votes.id) as count").
 		Joins("left join votes on votes.candidate_id = candidates.id").
+		Joins("left join users on users.id = votes.user_id").
+		Where("users.verification_status = ? OR votes.id IS NULL", "approved").
 		Group("candidates.id").
 		Scan(&results)
 

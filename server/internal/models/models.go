@@ -8,8 +8,11 @@ type User struct {
 	ID       uint   `gorm:"primaryKey"`
 	NIM      string `gorm:"uniqueIndex"`
 	Email    string `gorm:"uniqueIndex"`
-	Role     string `gorm:"default:'voter'"` // 'admin' or 'voter'
-	HasVoted bool   `gorm:"default:false"`
+	Role              string `gorm:"default:'voter'"` // 'admin' or 'voter'
+	HasVoted          bool   `gorm:"default:false"`
+	ProfileImage      string
+	KTMImage          string
+	VerificationStatus string `gorm:"default:'none'"` // 'none', 'pending', 'approved', 'rejected'
 }
 
 type Candidate struct {

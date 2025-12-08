@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import Steps from '../components/Steps';
 
 const VotingPage = () => {
     const [candidates, setCandidates] = useState([]);
@@ -57,6 +58,7 @@ const VotingPage = () => {
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-4xl mx-auto">
+                <Steps currentStep={2} />
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Vote for Your Candidate</h1>
                     <button onClick={handleLogout} className="text-sm text-red-600 hover:text-red-800">Logout</button>
@@ -77,8 +79,8 @@ const VotingPage = () => {
                                     onClick={() => handleVote(candidate.ID)}
                                     disabled={user?.HasVoted}
                                     className={`w-full py-2 px-4 rounded font-medium text-white transition-colors duration-200 ${user?.HasVoted
-                                            ? 'bg-gray-400 cursor-not-allowed'
-                                            : 'bg-blue-600 hover:bg-blue-700'
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-blue-600 hover:bg-blue-700'
                                         }`}
                                 >
                                     {user?.HasVoted ? 'Voted' : 'Vote'}

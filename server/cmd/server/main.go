@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"voting-backend/internal/db"
 	"voting-backend/internal/handlers"
 	"voting-backend/internal/models"
@@ -12,7 +13,13 @@ import (
 
 func main() {
 	// Connect to database
+	// Connect to database
 	db.Connect()
+
+	// Create uploads directory
+	if err := os.MkdirAll("uploads", 0755); err != nil {
+		log.Fatal("Failed to create uploads directory: ", err)
+	}
 
 	// Auto-migrate models
 	err := db.DB.AutoMigrate(&models.User{}, &models.Candidate{}, &models.Vote{})
@@ -33,6 +40,12 @@ func main() {
 	r.GET("/candidates", handlers.GetCandidates)
 	r.POST("/vote", handlers.Vote)
 	r.GET("/admin/results", handlers.GetResults)
+
+	r.POST("/upload-verification", handlers.UploadVerification)
+	r.GET("/admin/verifications", handlers.GetPendingVerifications)
+	r.POST("/admin/verify", handlers.VerifyUser)
+
+	r.Static("/uploads", "./uploads")
 
 	// Seed data if needed
 	handlers.SeedCandidates()
