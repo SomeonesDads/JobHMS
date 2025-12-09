@@ -85,10 +85,11 @@ const VotingPage = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-[600px_600px] justify-center gap-6">
-                        {candidates.map((candidate) => (
+                        {candidates.map((candidate, index) => (
                             <div
                                 key={candidate.ID}
-                                className="bg-white bg-opacity-75 rounded-lg shadow-md overflow-hidden flex flex-col hover:shadow-lg transition-shadow w-full"
+                                className="bg-white bg-opacity-75 rounded-lg shadow-md overflow-hidden flex flex-col hover:shadow-lg transition-shadow w-full animate-slideIn"
+                                style={{ animationDelay: `${index * 0.1}s` }}
                             >
                                 <div className="p-6 flex-1 flex flex-col items-center justify-center">
                                     <div className="w-32 h-32 bg-gray-200 overflow-hidden rounded-full">
@@ -104,11 +105,11 @@ const VotingPage = () => {
                                         <div className="mb-6 space-y-2 flex-1 items-center justify-center">
                                             <div className="rounded text-sm">
                                                 <strong className="block text-gray-800 mb-1 text-center">Visi:</strong>
-                                                <p className="text-center">{candidate.Visi || '-'}</p>
+                                                <p className="text-center whitespace-pre-wrap">{candidate.Visi || '-'}</p>
                                             </div>
                                             <div className="rounded text-sm">
                                                 <strong className="block text-gray-800 mb-1 text-center">Misi:</strong>
-                                                <p className="text-center">{candidate.Misi || '-'}</p>
+                                                <p className="text-center whitespace-pre-wrap">{candidate.Misi || '-'}</p>
                                             </div>
                                         </div>
                                     </div>

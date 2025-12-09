@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import UserDetailModal from "../components/UserDetailModal";
+import VoteDetailModal from "../components/VoteDetailModal";
 
 interface User {
   ID: number;
@@ -38,9 +40,10 @@ interface Candidate {
 }
 
 interface Result {
-  CandidateID: number;
-  Name: string;
-  Count: number;
+  candidateId: number;
+  name: string;
+  imageUrl: string;
+  count: number;
 }
 
 const AdminPage = () => {
@@ -57,6 +60,18 @@ const AdminPage = () => {
   const [results, setResults] = useState<Result[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
 
+  // Search State
+  const [userSearch, setUserSearch] = useState("");
+  const [voteSearch, setVoteSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Modal State
+  const [selectedUser, setSelectedUser] = useState<Verification | null>(null);
+  const [selectedVote, setSelectedVote] = useState<any>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showVoteModal, setShowVoteModal] = useState(false);
+
   // Candidate Form State
   const [newCandidate, setNewCandidate] = useState({
     name: "",
@@ -71,6 +86,12 @@ const AdminPage = () => {
       navigate("/login");
       return;
     }
+    // Reset search when switching tabs
+    setUserSearch("");
+    setVoteSearch("");
+    setSearchResults([]);
+    setIsSearching(false);
+
     fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
@@ -114,6 +135,41 @@ const AdminPage = () => {
       setCandidates(res.data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Search functions
+  const handleUserSearch = async (query: string) => {
+    setUserSearch(query);
+    if (query.trim() === "") {
+      setIsSearching(false);
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await api.get(`/admin/users/search?q=${encodeURIComponent(query)}`);
+      setSearchResults(res.data);
+    } catch (err) {
+      console.error(err);
+      setSearchResults([]);
+    }
+  };
+
+  const handleVoteSearch = async (query: string) => {
+    setVoteSearch(query);
+    if (query.trim() === "") {
+      setIsSearching(false);
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await api.get(`/admin/votes/search?q=${encodeURIComponent(query)}`);
+      setSearchResults(res.data);
+    } catch (err) {
+      console.error(err);
+      setSearchResults([]);
     }
   };
 
@@ -177,11 +233,10 @@ const AdminPage = () => {
     <button
       onClick={() => setActiveTab(id)}
       className={`px-4 py-3 font-medium transition-colors whitespace-nowrap
-            ${
-              activeTab === id
-                ? "bg-blue-600 text-white border-b-2 border-blue-400"
-                : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-            }`}
+            ${activeTab === id
+          ? "bg-blue-600 text-white border-b-2 border-blue-400"
+          : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+        }`}
     >
       {label}
     </button>
@@ -210,23 +265,34 @@ const AdminPage = () => {
         <div className="bg-gray-800 rounded-lg p-6 shadow-xl min-h-[400px]">
           {/* --- MAHASISWA TAB (Registration) --- */}
           {activeTab === "mahasiswa" && (
-            <div>
+            <div className="animate-slideIn">
               <h2 className="text-xl font-bold mb-4">
                 Verifikasi Registrasi Mahasiswa
               </h2>
+
+              {/* Search Input */}
+              <div className="mb-6">
+                <input
+                  type="text"
+                  placeholder="Cari berdasarkan NIM atau Nama..."
+                  value={userSearch}
+                  onChange={(e) => handleUserSearch(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 p-3 rounded text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {verifications.map((v) => (
+                {(isSearching && userSearch ? searchResults : verifications).map((v: any) => (
                   <div
                     key={v.ID}
                     className="bg-gray-700 rounded-lg p-4 flex flex-col gap-4"
                   >
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <div className="font-bold text-lg">
                           {v.Name || "No Name"}
                         </div>
                         <div className="font-mono text-gray-400">{v.NIM}</div>
-                        <div className="text-sm text-gray-500">{v.Email}</div>
                       </div>
                       <div className="flex gap-2">
                         <a
@@ -238,6 +304,7 @@ const AdminPage = () => {
                           <img
                             src={`http://localhost:8080/${v.ProfileImage}`}
                             className="w-full h-full object-cover"
+                            alt="Profile"
                           />
                         </a>
                         <a
@@ -249,16 +316,26 @@ const AdminPage = () => {
                           <img
                             src={`http://localhost:8080/${v.KTMImage}`}
                             className="w-full h-full object-cover"
+                            alt="KTM"
                           />
                         </a>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => {
+                          setSelectedUser(v);
+                          setShowUserModal(true);
+                        }}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold"
+                      >
+                        Detail
+                      </button>
+                      <button
                         onClick={() => handleVerifyUser(v.ID, "approve")}
                         className="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded font-bold"
                       >
-                        Approve & Send Token
+                        Approve
                       </button>
                       <button
                         onClick={() => handleVerifyUser(v.ID, "reject")}
@@ -269,9 +346,9 @@ const AdminPage = () => {
                     </div>
                   </div>
                 ))}
-                {verifications.length === 0 && (
+                {(isSearching && userSearch ? searchResults : verifications).length === 0 && (
                   <p className="text-gray-500 italic">
-                    Tidak ada antrian registrasi.
+                    {isSearching && userSearch ? "Tidak ada hasil pencarian." : "Tidak ada antrian registrasi."}
                   </p>
                 )}
               </div>
@@ -280,63 +357,95 @@ const AdminPage = () => {
 
           {/* --- VERIFIKASI SUARA TAB (New) --- */}
           {activeTab === "verifikasi_suara" && (
-            <div>
+            <div className="animate-slideIn">
               <h2 className="text-xl font-bold mb-4">Verifikasi Suara Masuk</h2>
+
+              {/* Search Input */}
+              <div className="mb-6">
+                <input
+                  type="text"
+                  placeholder="Cari berdasarkan NIM atau Nama pemilih..."
+                  value={voteSearch}
+                  onChange={(e) => handleVoteSearch(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 p-3 rounded text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
               <div className="grid grid-cols-1 gap-6">
-                {pendingVotes.map((v) => (
+                {(isSearching && voteSearch ? searchResults : pendingVotes).map((v: any) => (
                   <div
-                    key={v.ID}
+                    key={v.ID || v.id}
                     className="bg-gray-700 rounded-lg p-4 flex flex-col md:flex-row gap-6 items-center"
                   >
                     <div className="flex-1">
                       <div className="text-sm text-gray-400">Pemilih:</div>
-                      <div className="font-bold text-lg">{v.UserName}</div>
+                      <div className="font-bold text-lg">{v.UserName || v.userName}</div>
+                      <div className="font-mono text-sm text-gray-400">{v.userNim || 'N/A'}</div>
                     </div>
                     <div className="flex-1">
                       <div className="text-sm text-gray-400">Memilih:</div>
                       <div className="font-bold text-blue-400">
-                        {v.CandidateName}
+                        {v.CandidateName || v.candidateName}
                       </div>
                     </div>
                     <div className="flex gap-4">
                       <div className="text-center">
-                        <div className="text-xs mb-1">KTM Saat Vote</div>
+                        <div className="text-xs mb-1">KTM</div>
                         <a
-                          href={`http://localhost:8080/${v.KTMImage}`}
+                          href={`http://localhost:8080/${v.KTMImage || v.ktmImage}`}
                           target="_blank"
                           rel="noreferrer"
                           className="block w-24 h-16 bg-black rounded overflow-hidden"
                         >
                           <img
-                            src={`http://localhost:8080/${v.KTMImage}`}
+                            src={`http://localhost:8080/${v.KTMImage || v.ktmImage}`}
                             className="w-full h-full object-cover"
+                            alt="KTM"
                           />
                         </a>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs mb-1">Foto Diri Saat Vote</div>
+                        <div className="text-xs mb-1">Foto Diri</div>
                         <a
-                          href={`http://localhost:8080/${v.SelfImage}`}
+                          href={`http://localhost:8080/${v.SelfImage || v.selfImage}`}
                           target="_blank"
                           rel="noreferrer"
                           className="block w-24 h-16 bg-black rounded overflow-hidden"
                         >
                           <img
-                            src={`http://localhost:8080/${v.SelfImage}`}
+                            src={`http://localhost:8080/${v.SelfImage || v.selfImage}`}
                             className="w-full h-full object-cover"
+                            alt="Self"
                           />
                         </a>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 w-full md:w-auto">
                       <button
-                        onClick={() => handleVerifyVote(v.ID, "approve")}
+                        onClick={() => {
+                          setSelectedVote({
+                            id: v.ID || v.id,
+                            userName: v.UserName || v.userName,
+                            userNim: v.userNim || 'N/A',
+                            userEmail: v.userEmail || 'N/A',
+                            candidateName: v.CandidateName || v.candidateName,
+                            ktmImage: v.KTMImage || v.ktmImage,
+                            selfImage: v.SelfImage || v.selfImage
+                          });
+                          setShowVoteModal(true);
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded font-bold"
+                      >
+                        Detail
+                      </button>
+                      <button
+                        onClick={() => handleVerifyVote(v.ID || v.id, "approve")}
                         className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded font-bold"
                       >
                         Sah-kan
                       </button>
                       <button
-                        onClick={() => handleVerifyVote(v.ID, "reject")}
+                        onClick={() => handleVerifyVote(v.ID || v.id, "reject")}
                         className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded font-bold"
                       >
                         Tolak
@@ -344,9 +453,9 @@ const AdminPage = () => {
                     </div>
                   </div>
                 ))}
-                {pendingVotes.length === 0 && (
+                {(isSearching && voteSearch ? searchResults : pendingVotes).length === 0 && (
                   <p className="text-gray-500 italic">
-                    Tidak ada suara pending.
+                    {isSearching && voteSearch ? "Tidak ada hasil pencarian." : "Tidak ada suara pending."}
                   </p>
                 )}
               </div>
@@ -448,7 +557,7 @@ const AdminPage = () => {
                 <table className="w-full text-left bg-gray-700 rounded-lg overflow-hidden">
                   <thead className="bg-gray-600">
                     <tr>
-                      <th className="p-4 w-16">ID</th>
+                      <th className="p-4 w-24">Foto</th>
                       <th className="p-4">Kandidat</th>
                       <th className="p-4 text-right">Suara Sah (Approved)</th>
                     </tr>
@@ -456,13 +565,19 @@ const AdminPage = () => {
                   <tbody>
                     {results.map((r) => (
                       <tr
-                        key={r.CandidateID}
+                        key={r.candidateId}
                         className="border-b border-gray-600 hover:bg-gray-600"
                       >
-                        <td className="p-4 text-gray-400">{r.CandidateID}</td>
-                        <td className="p-4 font-bold">{r.Name}</td>
-                        <td className="p-4 text-right text-2xl font-bold text-green-400">
-                          {r.Count}
+                        <td className="p-4">
+                          <img
+                            src={`http://localhost:8080${r.imageUrl}`}
+                            alt={r.name}
+                            className="w-16 h-16 object-cover rounded"
+                          />
+                        </td>
+                        <td className="p-4 font-bold text-lg">{r.name}</td>
+                        <td className="p-4 text-right text-3xl font-bold text-green-400">
+                          {r.count}
                         </td>
                       </tr>
                     ))}
@@ -483,6 +598,18 @@ const AdminPage = () => {
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      <UserDetailModal
+        isOpen={showUserModal}
+        onClose={() => setShowUserModal(false)}
+        user={selectedUser}
+      />
+      <VoteDetailModal
+        isOpen={showVoteModal}
+        onClose={() => setShowVoteModal(false)}
+        vote={selectedVote}
+      />
     </div>
   );
 };

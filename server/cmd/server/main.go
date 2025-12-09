@@ -46,12 +46,14 @@ func main() {
 
 	// Admin routes
 	r.GET("/admin/users/pending", handlers.GetPendingUsers)
+	r.GET("/admin/users/search", handlers.SearchUsers) // Search users
 	r.POST("/admin/verify", handlers.VerifyUser)
 	r.POST("/admin/candidates", handlers.CreateCandidate)
 	r.DELETE("/admin/candidates/:id", handlers.DeleteCandidate) // Added
 
 	// Vote Logic V3 routes
 	r.GET("/admin/votes/pending", handlers.GetPendingVotes)
+	r.GET("/admin/votes/search", handlers.SearchVotes)  // Search votes
 	r.POST("/admin/votes/verify", handlers.ApproveVote) // Approve/Reject Vote
 
 	// Legacy or Specific upload route if needed, currently Register handles it.
@@ -63,8 +65,7 @@ func main() {
 
 	r.Static("/uploads", "./uploads")
 
-	// Seed data if needed
-	handlers.SeedCandidates()
+	// Seed admin account only
 	handlers.SeedAdmin() // Seed Admin Account
 
 	r.Run(":8080")
