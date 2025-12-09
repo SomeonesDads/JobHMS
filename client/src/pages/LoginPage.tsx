@@ -8,13 +8,13 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const response = await api.post("/login", { nim, token });
       localStorage.setItem("user", JSON.stringify(response.data));
       navigate("/verif");
-    } catch (err) {
+    } catch (err: any) {
       setError(err.response?.data?.error || "Login failed");
     }
   };

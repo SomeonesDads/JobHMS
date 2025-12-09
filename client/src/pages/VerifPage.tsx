@@ -5,9 +5,12 @@ import Steps from '../components/Steps';
 
 const VerifPage = () => {
     const navigate = useNavigate();
-    const [user] = useState(JSON.parse(localStorage.getItem('user')));
-    const [profileImg, setProfileImg] = useState(null);
-    const [ktmImg, setKtmImg] = useState(null);
+    const [user] = useState(() => {
+        const saved = localStorage.getItem('user');
+        return saved ? JSON.parse(saved) : null;
+    });
+    const [profileImg, setProfileImg] = useState<File | null>(null);
+    const [ktmImg, setKtmImg] = useState<File | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -17,13 +20,13 @@ const VerifPage = () => {
         }
     }, [user, navigate]);
 
-    const handleFileChange = (e, setter) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<File | null>>) => {
         if (e.target.files && e.target.files[0]) {
             setter(e.target.files[0]);
         }
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!profileImg || !ktmImg) {
             setError("Both check images are required");
@@ -43,7 +46,7 @@ const VerifPage = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             navigate('/vote');
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
             setError(err.response?.data?.error || 'Upload failed');
         } finally {
@@ -67,7 +70,7 @@ const VerifPage = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Profile Image Input */}
                             <div className="border-2 border-dashed border-green-900 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition h-48 gap-4"
-                                onClick={() => document.getElementById('profileInput').click()}>
+                                onClick={() => (document.getElementById('profileInput') as HTMLInputElement).click()}>
                                 <input id="profileInput" type="file" accept="image/*" className="hidden"
                                     onChange={(e) => handleFileChange(e, setProfileImg)} />
                                 <img src="/self.png" alt="foto diri" className="h-24 opacity-50"></img>
@@ -78,7 +81,7 @@ const VerifPage = () => {
 
                             {/* KTM Image Input */}
                             <div className="border-2 border-dashed border-green-900 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition h-48 gap-4"
-                                onClick={() => document.getElementById('ktmInput').click()}>
+                                onClick={() => (document.getElementById('ktmInput') as HTMLInputElement).click()}>
                                 <input id="ktmInput" type="file" accept="image/*" className="hidden"
                                     onChange={(e) => handleFileChange(e, setKtmImg)} />
                                 <img src="/id.png" alt="ktm" className="h-24 opacity-75"></img>

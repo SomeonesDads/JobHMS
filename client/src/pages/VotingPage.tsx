@@ -3,21 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import Steps from '../components/Steps';
 
+interface Candidate {
+    ID: number;
+    Name: string;
+    Visi: string;
+    Misi: string;
+    ImageURL: string;
+}
+
+interface User {
+    ID: number;
+    HasVoted: boolean;
+}
+
 const VotingPage = () => {
-    const [candidates, setCandidates] = useState([]);
-    const [user, setUser] = useState(null);
-    const [selectedCandidate, setSelectedCandidate] = useState(null); // For Modal
-    const [ktmImg, setKtmImg] = useState(null);
-    const [selfImg, setSelfImg] = useState(null);
+    const [candidates, setCandidates] = useState<Candidate[]>([]);
+    const [user, setUser] = useState<User | null>(null);
+    const [selectedCandidate, setSelectedCandidate] = useState<number | null>(null); // For Modal
+    const [ktmImg, setKtmImg] = useState<File | null>(null);
+    const [selfImg, setSelfImg] = useState<File | null>(null);
     const [voting, setVoting] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
-        const storedUser = JSON.parse(localStorage.getItem('user'));
+        const storedUser = localStorage.getItem('user');
         if (!storedUser) {
             navigate('/login');
         } else {
-            setUser(storedUser);
+            setUser(JSON.parse(storedUser));
             fetchCandidates();
         }
     }, [navigate]);
@@ -31,21 +44,21 @@ const VotingPage = () => {
         }
     };
 
-    const handleVoteClick = (candidateId) => {
+    const handleVoteClick = (candidateId: number) => {
         setSelectedCandidate(candidateId);
     };
 
-    const handleConfirmVote = async (e) => {
+    const handleConfirmVote = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!ktmImg || !selfImg) {
+        if (!ktmImg || !selfImg || !user || !selectedCandidate) {
             alert("Harap upload kedua foto (KTM dan Diri Sendiri) untuk verifikasi ulang.");
             return;
         }
 
         setVoting(true);
         const data = new FormData();
-        data.append('userId', user.ID);
-        data.append('candidateId', selectedCandidate);
+        data.append('userId', user.ID.toString());
+        data.append('candidateId', selectedCandidate.toString());
         data.append('ktm_image', ktmImg);
         data.append('self_image', selfImg);
 
@@ -59,7 +72,7 @@ const VotingPage = () => {
             setUser(updatedUser);
             setSelectedCandidate(null); // Close modal
             alert('Suara berhasil dikirim! Menunggu verifikasi admin.');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error voting:', error);
             alert(error.response?.data?.error || 'Gagal mengirim suara.');
         } finally {
@@ -94,7 +107,7 @@ const VotingPage = () => {
                                             src={`http://localhost:8080${candidate.ImageURL}`}
                                             alt={candidate.Name}
                                             className="w-32 h-32 rounded-full object-cover"
-                                            onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=No+Image'; }} // Fallback
+                                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300?text=No+Image'; }} // Fallback
                                         />
                                     </div>
                                     <div className="p-6 flex-1 flex flex-col items-center justify-center">

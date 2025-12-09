@@ -9,22 +9,22 @@ const RegisterPage = () => {
         nim: '',
         email: ''
     });
-    const [profileImg, setProfileImg] = useState(null);
-    const [ktmImg, setKtmImg] = useState(null);
+    const [profileImg, setProfileImg] = useState<File | null>(null);
+    const [ktmImg, setKtmImg] = useState<File | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleFileChange = (e, setter) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<File | null>>) => {
         if (e.target.files && e.target.files[0]) {
             setter(e.target.files[0]);
         }
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
@@ -47,7 +47,7 @@ const RegisterPage = () => {
             });
             alert('Registration successful! Please login.');
             navigate('/login');
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
             setError(err.response?.data?.error || 'Registration failed');
         } finally {
