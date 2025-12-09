@@ -8,10 +8,10 @@ const LoginAdminPage = () => {
     const [error, setError] = useState("");
     const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await api.post("/login", { nim, email });
+            const response = await api.post("/login", { nim, token: email });
             const user = response.data;
             if (user.Role !== 'admin') {
                 setError("Access denied. Not an admin account.");
@@ -19,7 +19,7 @@ const LoginAdminPage = () => {
             }
             localStorage.setItem("user", JSON.stringify(user));
             navigate("/admin");
-        } catch (err) {
+        } catch (err: any) {
             setError(err.response?.data?.error || "Login failed");
         }
     };
