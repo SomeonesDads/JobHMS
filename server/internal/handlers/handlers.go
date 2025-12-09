@@ -238,11 +238,8 @@ func Vote(c *gin.Context) {
 	userIDStr := c.PostForm("userId")
 	candidateIDStr := c.PostForm("candidateId")
 
-	ktmFile, err1 := c.FormFile("ktm_image")
-	selfFile, err2 := c.FormFile("self_image")
-
-	if userIDStr == "" || candidateIDStr == "" || err1 != nil || err2 != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields (userId, candidateId, images) required"})
+	if userIDStr == "" || candidateIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID and Candidate ID are required"})
 		return
 	}
 
@@ -257,13 +254,6 @@ func Vote(c *gin.Context) {
 		return
 	}
 
-	// Save images
-	ktmPath := fmt.Sprintf("uploads/vote_%s_ktm%s", userIDStr, filepath.Ext(ktmFile.Filename))
-	selfPath := fmt.Sprintf("uploads/vote_%s_self%s", userIDStr, filepath.Ext(selfFile.Filename))
-
-	c.SaveUploadedFile(ktmFile, ktmPath)
-	c.SaveUploadedFile(selfFile, selfPath)
-
 	// Atomic transaction
 	tx := db.DB.Begin()
 
@@ -274,22 +264,26 @@ func Vote(c *gin.Context) {
 	}
 
 	vote := models.Vote{
-		UserID:      user.ID, // Assuming Convert
-		CandidateID: 0,       // Need parse. Let's do a quick DB lookup for candidate to ensure valid and get ID type right if string issues. Assuming auto convert works or need implementation.
+		UserID:      user.ID,
+		CandidateID: 0,
 		Timestamp:   time.Now(),
-		KTMImage:    ktmPath,
-		SelfImage:   selfPath,
+		KTMImage:    user.KTMImage,     // Use User's existing images
+		SelfImage:   user.ProfileImage, // Use User's existing images
 		IsApproved:  false,
 	}
 
-	// Fix CandidateID parsing
-	var cand models.Candidate
-	if err := db.DB.Where("id = ?", candidateIDStr).First(&cand).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Candidate"})
-		return
+	// Handle Kotak Kosong (ID=0)
+	if candidateIDStr == "0" {
+		vote.CandidateID = 0
+	} else {
+		var cand models.Candidate
+		if err := db.DB.Where("id = ?", candidateIDStr).First(&cand).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Candidate"})
+			return
+		}
+		vote.CandidateID = cand.ID
 	}
-	vote.CandidateID = cand.ID
 
 	if err := tx.Create(&vote).Error; err != nil {
 		tx.Rollback()
@@ -298,7 +292,7 @@ func Vote(c *gin.Context) {
 	}
 
 	tx.Commit()
-	c.JSON(http.StatusOK, gin.H{"message": "Vote cast successfully, pending approval"})
+	c.JSON(http.StatusOK, gin.H{"message": "Vote cast successfully"})
 }
 
 func GetPendingVotes(c *gin.Context) {

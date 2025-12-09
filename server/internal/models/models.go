@@ -5,12 +5,14 @@ import (
 )
 
 type User struct {
-	ID                 uint   `gorm:"primaryKey"`
-	Name               string // Added Name
-	NIM                string `gorm:"uniqueIndex"`
-	Email              string `gorm:"uniqueIndex"`
-	Role               string `gorm:"default:'voter'"` // 'admin' or 'voter'
-	HasVoted           bool   `gorm:"default:false"`
+	ID                 uint    `gorm:"primaryKey"`
+	Name               string  // Added Name
+	Username           *string `gorm:"uniqueIndex"` // Added for Admin, nullable
+	Password           *string // Added for Admin, nullable
+	NIM                string  `gorm:"uniqueIndex"`
+	Email              string  `gorm:"uniqueIndex"`
+	Role               string  `gorm:"default:'voter'"` // 'admin' or 'voter'
+	HasVoted           bool    `gorm:"default:false"`
 	ProfileImage       string
 	KTMImage           string
 	VerificationStatus string `gorm:"default:'none'"` // 'none', 'pending', 'approved', 'rejected'
@@ -18,11 +20,10 @@ type User struct {
 }
 
 type Candidate struct {
-	ID   uint `gorm:"primaryKey"`
-	Name string
-	// Description removed
-	Visi     string // Added Visi
-	Misi     string // Added Misi
+	ID       uint `gorm:"primaryKey"`
+	Name     string
+	Visi     string
+	Misi     string
 	ImageURL string
 }
 
@@ -31,7 +32,7 @@ type Vote struct {
 	UserID      uint
 	CandidateID uint
 	Timestamp   time.Time
-	KTMImage    string // Added
-	SelfImage   string // Added
-	IsApproved  bool   `gorm:"default:false"` // Added
+	KTMImage    string
+	SelfImage   string
+	IsApproved  bool `gorm:"default:false"`
 }

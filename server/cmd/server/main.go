@@ -37,6 +37,7 @@ func main() {
 	// Routes
 	r.POST("/login", handlers.Login)
 	r.POST("/register", handlers.Register)
+	r.POST("/admin/login", handlers.AdminLogin) // Added Admin Login Logic
 
 	r.GET("/candidates", handlers.GetCandidates)
 	r.POST("/vote", handlers.Vote)
@@ -64,6 +65,7 @@ func main() {
 
 	// Seed data if needed
 	handlers.SeedCandidates()
+	handlers.SeedAdmin() // Seed Admin Account
 
 	r.Run(":8080")
 }

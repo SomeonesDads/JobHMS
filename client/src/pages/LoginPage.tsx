@@ -1,21 +1,41 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import api from "../api";
 
 const LoginPage = () => {
   const [nim, setNim] = useState("");
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check for message from navigation (e.g. after voting)
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+    }
+  }, [location]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const response = await api.post("/login", { nim, token });
-      localStorage.setItem("user", JSON.stringify(response.data));
-      navigate("/verif");
+      const user = response.data;
+      localStorage.setItem("user", JSON.stringify(user));
+
+      if (user.Role === 'admin') {
+        navigate("/admin");
+      } else {
+        if (user.HasVoted) {
+          setError("Anda sudah memilih");
+        } else {
+          navigate("/verif");
+        }
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || "Login failed");
+      setSuccessMessage("");
     }
   };
 
@@ -24,20 +44,29 @@ const LoginPage = () => {
       <div className="flex flex-col bg-white bg-opacity-75 p-8 rounded-lg shadow-md w-[500px] gap-4">
         <div className="flex justify-center items-center gap-5">
           <img src="/logo_hms.png" alt="logo HMS" className="h-16 w-16 rounded-full"></img>
-          <img src="/logopanit.png" alt="logo panitia" className="h-16 w-16 rounded-full"></img>
+          <img src="/logo192.png" alt="logo pemilu" className="h-16 w-16 rounded-full"></img>
         </div>
         <div className="gap-0">
           <h2 className="text-4xl font-bold text-center text-gray-800">
             PEMILU HMS ITB 2025
           </h2>
-          <h2 className="text-lg font-bold text-center text-gray-800">
-            Pemilihan Ketua Umum BP ITB 2025/2026
+          <h2 className="text-sm font-semibold text-center text-gray-800">
+            Pemilihan Ketua Umum BP HMS ITB 2025/2026
           </h2>
         </div>
 
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+        {successMessage && (
+          <div className="bg-green-800 border border-green-600 text-green-100 p-3 rounded mb-4 text-sm text-center">
+            {successMessage}
+          </div>
+        )}
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        {error && (
+          <div className="bg-red-900 border border-red-700 text-red-200 p-2 rounded mb-4 text-sm">
+            {error}
+          </div>
+        )}
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 uppercase">
               NIM

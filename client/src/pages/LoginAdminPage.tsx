@@ -3,15 +3,15 @@ import { useNavigate } from "react-router-dom";
 import api from "../api";
 
 const LoginAdminPage = () => {
-    const [nim, setNim] = useState("");
-    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await api.post("/login", { nim, token: email });
+            const response = await api.post("/admin/login", { username, password });
             const user = response.data;
             if (user.Role !== 'admin') {
                 setError("Access denied. Not an admin account.");
@@ -50,18 +50,18 @@ const LoginAdminPage = () => {
                     <div>
                         <input
                             type="text"
-                            value={nim}
-                            onChange={(e) => setNim(e.target.value)}
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
                             className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
-                            placeholder="Admin NIM"
+                            placeholder="Username"
                             required
                         />
                         <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
-                            placeholder="TOKEN"
+                            placeholder="Password"
                             required
                         />
                     </div>
