@@ -14,13 +14,13 @@ import (
 )
 
 func main() {
-	// Connect to database
-	db.Connect()
-
-	// Load .env
+	// Load .env first so environment variables are available
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
+
+	// Connect to database (now can use env vars)
+	db.Connect()
 
 	// Init pCloud
 	pUse := os.Getenv("PCLOUD_USERNAME")
@@ -71,7 +71,7 @@ func main() {
 	r.POST("/admin/verify", handlers.VerifyUser)
 	r.POST("/admin/candidates", handlers.CreateCandidate)
 	r.DELETE("/admin/candidates/:id", handlers.DeleteCandidate) // Added
-	r.POST("/admin/settings", handlers.UpdateSettings) // Admin update settings
+	r.POST("/admin/settings", handlers.UpdateSettings)          // Admin update settings
 
 	// Vote Logic V3 routes
 	r.GET("/admin/votes/pending", handlers.GetPendingVotes)
