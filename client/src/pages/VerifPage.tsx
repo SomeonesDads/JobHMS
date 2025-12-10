@@ -29,7 +29,7 @@ const VerifPage = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!profileImg || !ktmImg) {
-            setError("Both check images are required");
+            setError("Kedua foto harus di-upload");
             return;
         }
 

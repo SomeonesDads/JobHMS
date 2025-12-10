@@ -22,8 +22,7 @@ const VotingPage = () => {
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [user, setUser] = useState<User | null>(null);
     const [selectedCandidate, setSelectedCandidate] = useState<number | null>(null); // For Modal
-    const [ktmImg, setKtmImg] = useState<File | null>(null);
-    const [selfImg, setSelfImg] = useState<File | null>(null);
+    const [selectedCandidateName, setSelectedCandidateName] = useState<string>(""); // For Modal Display
     const [voting, setVoting] = useState(false);
     const [electionStatus, setElectionStatus] = useState<"loading" | "coming_soon" | "active" | "ended">("loading");
     const [settings, setSettings] = useState<any>(null);
@@ -96,8 +95,9 @@ const VotingPage = () => {
         // moved to init
     };
 
-    const handleVoteClick = (candidateId: number) => {
+    const handleVoteClick = (candidateId: number, candidateName: string) => {
         setSelectedCandidate(candidateId);
+        setSelectedCandidateName(candidateName);
     };
 
     const { success, error: showError } = useToast();
@@ -113,8 +113,6 @@ const VotingPage = () => {
         const data = new FormData();
         data.append('userId', user.ID.toString());
         data.append('candidateId', selectedCandidate.toString());
-        data.append('ktm_image', ktmImg);
-        data.append('self_image', selfImg);
 
         try {
             await api.post('/vote', data, {
@@ -132,11 +130,6 @@ const VotingPage = () => {
         } finally {
             setVoting(false);
         }
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('user');
-        navigate('/login');
     };
 
     return (
@@ -231,7 +224,35 @@ const VotingPage = () => {
                                 </div>
                             </div>
                         ))}
+
+                        {/* Kotak Kosong */}
+                        <div className="bg-white bg-opacity-75 rounded-lg shadow-md overflow-hidden flex flex-col hover:shadow-lg transition-shadow w-full">
+                            <div className="p-6 flex-1 flex flex-col items-center justify-center">
+                                <div className="w-32 h-32">
+                                    <img
+                                        src="./kotakkosong.png"
+                                        alt="Kotak Kosong"
+                                        className="w-32 h-32 object-cover"
+                                    />
+                                </div>
+
+                                <div className="p-6 flex flex-col items-center justify-center flex-1">
+                                    <h2 className="text-2xl font-bold mb-2 text-gray-800">Kotak Kosong</h2>
+                                    <p className="text-gray-600 text-sm text-center">
+                                        Dengan memilih kotak kosong, anda setuju untuk tidak memberikan suara atau pilihan kepada satupun calon kandidat untuk Ketua Umum BP Himpunan
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => handleVoteClick(0, "Kotak Kosong")}
+                                className="w-full py-3 bg-green-900 hover:bg-green-950 text-white font-bold rounded-b-lg transition-colors"
+                            >
+                                Pilih Kotak Kosong
+                            </button>
+                        </div>
                     </div>
+
                 )}
                 </>
             )}
