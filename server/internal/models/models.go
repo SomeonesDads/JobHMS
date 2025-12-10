@@ -9,12 +9,19 @@ type User struct {
 	Name               string // Added Name
 	NIM                string `gorm:"uniqueIndex"`
 	Email              string `gorm:"uniqueIndex"`
+	Password           string // Changed from Token
 	Role               string `gorm:"default:'voter'"` // 'admin' or 'voter'
 	HasVoted           bool   `gorm:"default:false"`
 	ProfileImage       string
 	KTMImage           string
 	VerificationStatus string `gorm:"default:'none'"` // 'none', 'pending', 'approved', 'rejected'
-	Token              string // Added Token
+	KTMUploadedAt      *time.Time // Added for 5 min timer
+}
+
+type ElectionSettings struct {
+	ID        uint `gorm:"primaryKey"`
+	StartTime time.Time
+	EndTime   time.Time
 }
 
 type Candidate struct {
