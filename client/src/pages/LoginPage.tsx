@@ -2,15 +2,32 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import api from "../api";
 import { useToast } from "../contexts/ToastContext";
+import CountdownTimer from "../components/CountdownTimer";
+
+
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [deadline, setDeadline] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { success, error } = useToast();
 
   useEffect(() => {
+    const fetchSettings = async () => {
+        try {
+            const res = await api.get("/settings");
+            // If we have a startTime and it's in the future
+            if (res.data && res.data.startTime) {
+                setDeadline(res.data.startTime);
+            }
+        } catch (e) {
+            console.error("Failed to load settings", e);
+        }
+    };
+    fetchSettings();
+
     if (location.state?.message) {
       success(location.state.message);
     }
@@ -58,6 +75,13 @@ const LoginPage = () => {
             Secure Voting Portal
           </p>
         </div>
+
+        {deadline && (
+            <div className="mb-6">
+                 {/* @ts-ignore - JS component */}
+                <CountdownTimer deadline={deadline} />
+            </div>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>

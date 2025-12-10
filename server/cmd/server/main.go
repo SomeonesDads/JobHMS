@@ -21,7 +21,8 @@ func main() {
 	}
 
 	// Auto-migrate models
-	err := db.DB.AutoMigrate(&models.User{}, &models.Candidate{}, &models.Vote{})
+	// Auto-migrate models
+	err := db.DB.AutoMigrate(&models.User{}, &models.Candidate{}, &models.Vote{}, &models.Setting{})
 	if err != nil {
 		log.Fatal("Failed to migrate database: ", err)
 	}
@@ -55,6 +56,10 @@ func main() {
 	r.GET("/admin/votes/pending", handlers.GetPendingVotes)
 	r.GET("/admin/votes/search", handlers.SearchVotes)  // Search votes
 	r.POST("/admin/votes/verify", handlers.ApproveVote) // Approve/Reject Vote
+
+	// Settings
+	r.GET("/settings", handlers.GetSettings)             // Public for countdown
+	r.POST("/admin/settings", handlers.SaveSettings)     // Admin only
 
 	// Legacy or Specific upload route if needed, currently Register handles it.
 	// But let's keep it if existing frontend uses it?

@@ -34,5 +34,12 @@ type Vote struct {
 	Timestamp   time.Time
 	KTMImage    string
 	SelfImage   string
-	IsApproved  bool `gorm:"default:false"`
+	LinkPassword string // Added for pCloud or future use
+	IsApproved   bool   `gorm:"default:false"`
+}
+
+type Setting struct {
+	ID    uint   `gorm:"primaryKey"`
+	Key   string `gorm:"uniqueIndex"`
+	Value string
 }

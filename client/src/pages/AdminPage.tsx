@@ -183,8 +183,12 @@ const AdminPage = () => {
 
   const handleSaveSettings = async (e: React.FormEvent) => {
       e.preventDefault();
-      // Mock implementation as endpoint might not exist yet
-      success("Settings saved locally (mock)");
+      try {
+          await api.post("/admin/settings", electionSettings);
+          success("Settings saved successfully");
+      } catch (err) {
+          showError("Failed to save settings");
+      }
   }
 
   const getImageSrc = (path: string) => {

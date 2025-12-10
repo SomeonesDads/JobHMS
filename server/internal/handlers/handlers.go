@@ -53,6 +53,20 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Check Election Timing
+	if user.Role != "admin" {
+		var startSetting models.Setting
+		if err := db.DB.Where("key = ?", "startTime").First(&startSetting).Error; err == nil && startSetting.Value != "" {
+			startTime, err := time.Parse("2006-01-02T15:04", startSetting.Value) // Adjust format if strictly sent from datetime-local input
+			if err == nil {
+				if time.Now().Before(startTime) {
+					c.JSON(http.StatusForbidden, gin.H{"error": "Pemilihan belum dimulai. Silakan tunggu countdown berakhir."})
+					return
+				}
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, user)
 }
 
@@ -472,4 +486,41 @@ func GetResults(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+func GetSettings(c *gin.Context) {
+	var settings []models.Setting
+	if err := db.DB.Find(&settings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch settings"})
+		return
+	}
+
+	settingsMap := make(map[string]string)
+	for _, s := range settings {
+		settingsMap[s.Key] = s.Value
+	}
+	c.JSON(http.StatusOK, settingsMap)
+}
+
+func SaveSettings(c *gin.Context) {
+	var req map[string]string
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	for k, v := range req {
+		var setting models.Setting
+		if err := db.DB.Where("key = ?", k).First(&setting).Error; err != nil {
+			// Create
+			setting = models.Setting{Key: k, Value: v}
+			db.DB.Create(&setting)
+		} else {
+			// Update
+			setting.Value = v
+			db.DB.Save(&setting)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Settings saved"})
 }
