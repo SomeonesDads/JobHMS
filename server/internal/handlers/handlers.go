@@ -57,7 +57,7 @@ func Login(c *gin.Context) {
 	if user.Role != "admin" {
 		var startSetting models.Setting
 		if err := db.DB.Where("key = ?", "startTime").First(&startSetting).Error; err == nil && startSetting.Value != "" {
-			startTime, err := time.Parse("2006-01-02T15:04", startSetting.Value) // Adjust format if strictly sent from datetime-local input
+			startTime, err := time.ParseInLocation("2006-01-02T15:04", startSetting.Value, time.Local) // Adjust format if strictly sent from datetime-local input
 			if err == nil {
 				if time.Now().Before(startTime) {
 					c.JSON(http.StatusForbidden, gin.H{"error": "Pemilihan belum dimulai. Silakan tunggu countdown berakhir."})
@@ -67,7 +67,7 @@ func Login(c *gin.Context) {
 		}
 		var endSetting models.Setting
 		if err := db.DB.Where("key = ?", "endTime").First(&endSetting).Error; err == nil && endSetting.Value != "" {
-			endTime, err := time.Parse("2006-01-02T15:04", endSetting.Value) // Adjust format if strictly sent from datetime-local input
+			endTime, err := time.ParseInLocation("2006-01-02T15:04", endSetting.Value, time.Local) // Adjust format if strictly sent from datetime-local input
 			if err == nil {
 				if time.Now().After(endTime) {
 					c.JSON(http.StatusForbidden, gin.H{"error": "Pemilihan sudah berakhir."})
@@ -113,6 +113,17 @@ func Register(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email sudah terdaftar"})
 		}
 		return
+	}
+
+	var startSetting models.Setting
+	if err := db.DB.Where("key = ?", "startTime").First(&startSetting).Error; err == nil && startSetting.Value != "" {
+		startTime, err := time.ParseInLocation("2006-01-02T15:04", startSetting.Value, time.Local) // Adjust format if strictly sent from datetime-local input
+		if err == nil {
+			if time.Now().After(startTime) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Waktu registrasi sudah berakhir."})
+				return
+			}
+		}
 	}
 
 	profileFile, err1 := c.FormFile("profile_image")
