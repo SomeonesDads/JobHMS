@@ -3,16 +3,15 @@ import { useNavigate } from "react-router-dom";
 import api from "../api";
 
 const LoginAdminPage = () => {
-    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await api.post("/admin/login", { username, password });
+            const response = await api.post("/admin/login", { email, password });
             const user = response.data;
             if (user.Role !== 'admin') {
                 setError("Access denied. Not an admin account.");
@@ -26,64 +25,57 @@ const LoginAdminPage = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900">
-            <div className="flex flex-col bg-gray-800 p-8 rounded-lg shadow-md w-[500px] gap-4 text-white">
-                <div className="flex justify-center items-center gap-5">
-                    {/* Reusing logos if available, or just text */}
-                    <img src="/logo_hms.png" alt="logo HMS" className="h-16 w-16 rounded-full"></img>
-                    <img src="/logo192.png" alt="logo pemilu" className="h-16 w-16 rounded-full"></img>
-                </div>
-                <div className="gap-0">
-                    <h2 className="text-4xl font-bold text-center text-white">
-                        ADMIN LOGIN
-                    </h2>
-                    <h2 className="text-sm font-semibold text-center text-gray-400">
-                        PEMILU HMS ITB 2025
-                    </h2>
-                </div>
-
-                {error && (
-                    <div className="bg-red-900 border border-red-700 text-red-200 p-2 rounded mb-4 text-sm">
-                        {error}
-                    </div>
-                )}
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div>
-                        <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
-                            placeholder="Username"
-                            required
-                        />
-                        <div className="relative mt-2">
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
-                                placeholder="Password"
-                                required
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white text-sm"
-                            >
-                                {showPassword ? "Sembunyikan" : "Tampilkan"}
-                            </button>
-                        </div>
-                    </div>
-                    <button
-                        type="submit"
-                        className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                        Masuk sebagai Admin
-                    </button>
-                </form>
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
+        <div className="flex justify-center items-center gap-5 mb-8">
+            <img src="/logo_hms.png" alt="logo HMS" className="h-16 w-16 drop-shadow-sm"></img>
+            <img src="/logo192.png" alt="logo pemilu" className="h-16 w-16 drop-shadow-sm"></img>
         </div>
+        
+        <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+                Admin Portal
+            </h2>
+            <p className="text-slate-500 mt-2 text-sm font-medium uppercase tracking-wider">
+                Authorized Access Only
+            </p>
+        </div>
+
+        {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 text-sm mb-6">{error}</div>}
+
+        <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <input 
+                    type="email" 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+                    placeholder="admin@hms.com"
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                <input 
+                    type="password" 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+                    placeholder="••••••••"
+                />
+            </div>
+
+            <button 
+                type="submit" 
+                className="w-full py-3 bg-slate-900 hover:bg-emerald-600 text-white font-semibold rounded-xl shadow-lg shadow-slate-900/20 hover:shadow-emerald-600/20 transition-all transform active:scale-95"
+            >
+                Start Admin Session
+            </button>
+        </form>
+      </div>
+    </div>
     );
 };
 

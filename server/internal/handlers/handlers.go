@@ -10,11 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type LoginRequest struct {
-	NIM   string `json:"nim"`
-	Token string `json:"token"` // Changed from Email
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func Login(c *gin.Context) {
@@ -24,22 +25,29 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// User Login (NIM + Token)
+	// User Login (Email + Password)
 	var user models.User
-	result := db.DB.Where("nim = ?", req.NIM).First(&user)
+	result := db.DB.Where("email = ?", req.Email).First(&user)
 
 	if result.Error != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not registered"})
 		return
 	}
 
-	// Check Token
-	if user.Token != req.Token {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Token"})
+	// Check Password
+	if user.Password == nil {
+		// Fallback for old users without password if necessary, or just fail
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(req.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
 	// Check Verification Status
+	// Admins are auto-approved. Voters need approval.
 	if user.VerificationStatus != "approved" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "User not verified yet"})
 		return
@@ -52,9 +60,10 @@ func Register(c *gin.Context) {
 	name := c.PostForm("name")
 	nim := c.PostForm("nim")
 	email := c.PostForm("email")
+	password := c.PostForm("password")
 
-	if name == "" || nim == "" || email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama, NIM, dan Email wajib diisi"})
+	if name == "" || nim == "" || email == "" || password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama, NIM, Email, dan Password wajib diisi"})
 		return
 	}
 
@@ -103,10 +112,18 @@ func Register(c *gin.Context) {
 		return
 	}
 
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memproses password"})
+		return
+	}
+	passStr := string(hashedPassword)
+
 	newUser := models.User{
 		Name:               name,
 		NIM:                nim,
 		Email:              email,
+		Password:           &passStr,
 		Role:               "voter",
 		ProfileImage:       profilePath,
 		KTMImage:           ktmPath,

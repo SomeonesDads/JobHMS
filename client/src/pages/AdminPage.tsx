@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import api from "../api";
 import UserDetailModal from "../components/UserDetailModal";
 import VoteDetailModal from "../components/VoteDetailModal";
+import AdminLayout from "../components/AdminLayout";
+import { useToast } from "../contexts/ToastContext";
+import { RefreshCw, CheckCircle2, XCircle, Plus, Trash2 } from "lucide-react";
 
 interface User {
   ID: number;
@@ -25,8 +28,11 @@ interface Verification {
 
 interface VoteRequest {
   ID: number;
-  UserName: string;
-  CandidateName: string;
+  user_name?: string;
+  UserName?: string;
+  user_nim?: string;
+  candidate_name?: string;
+  CandidateName?: string;
   KTMImage: string;
   SelfImage: string;
 }
@@ -40,10 +46,13 @@ interface Candidate {
 }
 
 interface Result {
-  candidateId: number;
-  name: string;
-  imageUrl: string;
-  count: number;
+  CandidateID?: number;
+  candidateId?: number;
+  Name?: string;
+  name?: string;
+  imageUrl?: string;
+  Count: number;
+  count?: number;
 }
 
 const AdminPage = () => {
@@ -53,18 +62,13 @@ const AdminPage = () => {
   });
   const [activeTab, setActiveTab] = useState("mahasiswa");
   const navigate = useNavigate();
+  const { success, error: showError } = useToast();
 
   // Data States
-  const [verifications, setVerifications] = useState<Verification[]>([]); // User Reg Verifications
-  const [pendingVotes, setPendingVotes] = useState<VoteRequest[]>([]); // Vote Verifications
-  const [results, setResults] = useState<Result[]>([]);
+  const [verifications, setVerifications] = useState<Verification[]>([]);
+  const [pendingVotes, setPendingVotes] = useState<VoteRequest[]>([]);
+  const [results, setResults] = useState<any[]>([]); // Using any to handle inconsistent casing from API if valid
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-
-  // Search State
-  const [userSearch, setUserSearch] = useState("");
-  const [voteSearch, setVoteSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
 
   // Modal State
   const [selectedUser, setSelectedUser] = useState<Verification | null>(null);
@@ -73,25 +77,26 @@ const AdminPage = () => {
   const [showVoteModal, setShowVoteModal] = useState(false);
 
   // Candidate Form State
+  const [isAddCandidateOpen, setIsAddCandidateOpen] = useState(false);
   const [newCandidate, setNewCandidate] = useState({
     name: "",
     visi: "",
     misi: "",
   });
   const [candidateImg, setCandidateImg] = useState<File | null>(null);
-  const [candidateLoading, setCandidateLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Election Settings
+  const [electionSettings, setElectionSettings] = useState({
+    startTime: "",
+    endTime: ""
+  });
 
   useEffect(() => {
     if (!user || user.Role !== "admin") {
-      navigate("/login");
+      navigate("/login-admin");
       return;
     }
-    // Reset search when switching tabs
-    setUserSearch("");
-    setVoteSearch("");
-    setSearchResults([]);
-    setIsSearching(false);
-
     fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
@@ -108,101 +113,55 @@ const AdminPage = () => {
     try {
       const res = await api.get("/admin/users/pending");
       setVerifications(res.data);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
   const fetchPendingVotes = async () => {
     try {
       const res = await api.get("/admin/votes/pending");
       setPendingVotes(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error(err);
-      setPendingVotes([]);
-    }
+    } catch (err) { console.error(err); setPendingVotes([]); }
   };
   const fetchResults = async () => {
     try {
       const res = await api.get("/admin/results");
       setResults(res.data);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
   const fetchCandidates = async () => {
     try {
       const res = await api.get("/candidates");
       setCandidates(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Search functions
-  const handleUserSearch = async (query: string) => {
-    setUserSearch(query);
-    if (query.trim() === "") {
-      setIsSearching(false);
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const res = await api.get(`/admin/users/search?q=${encodeURIComponent(query)}`);
-      setSearchResults(res.data);
-    } catch (err) {
-      console.error(err);
-      setSearchResults([]);
-    }
-  };
-
-  const handleVoteSearch = async (query: string) => {
-    setVoteSearch(query);
-    if (query.trim() === "") {
-      setIsSearching(false);
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const res = await api.get(`/admin/votes/search?q=${encodeURIComponent(query)}`);
-      setSearchResults(res.data);
-    } catch (err) {
-      console.error(err);
-      setSearchResults([]);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleVerifyUser = async (userId: number, action: string) => {
     try {
       await api.post("/admin/verify", { userId, action });
+      success(`User ${action}ed successfully`);
       fetchVerifications();
-    } catch (err) {
-      alert("Failed");
-    }
+    } catch (err) { showError("Action failed"); }
   };
+  
   const handleVerifyVote = async (voteId: number, action: string) => {
     try {
       await api.post("/admin/votes/verify", { voteId, action });
+      success(`Vote ${action}ed successfully`);
       fetchPendingVotes();
-    } catch (err) {
-      alert("Failed");
-    }
+    } catch (err) { showError("Action failed"); }
   };
+  
   const handleDeleteCandidate = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this candidate?"))
-      return;
+    if (!window.confirm("Are you sure?")) return;
     try {
       await api.delete(`/admin/candidates/${id}`);
+      success("Candidate deleted");
       fetchCandidates();
-    } catch (err) {
-      alert("Failed to delete");
-    }
+    } catch (err) { showError("Delete failed"); }
   };
 
   const handleAddCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCandidateLoading(true);
+    setSubmitting(true);
     const data = new FormData();
     data.append("name", newCandidate.name);
     data.append("visi", newCandidate.visi);
@@ -213,404 +172,328 @@ const AdminPage = () => {
       await api.post("/admin/candidates", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      alert("Candidate added!");
+      success("Candidate added!");
       setNewCandidate({ name: "", visi: "", misi: "" });
       setCandidateImg(null);
+      setIsAddCandidateOpen(false);
       fetchCandidates();
-    } catch (err) {
-      alert("Failed");
-    } finally {
-      setCandidateLoading(false);
-    }
+    } catch (err) { showError("Failed to add candidate"); }
+    finally { setSubmitting(false); }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    navigate("/login");
+  const handleSaveSettings = async (e: React.FormEvent) => {
+      e.preventDefault();
+      // Mock implementation as endpoint might not exist yet
+      success("Settings saved locally (mock)");
+  }
+
+  const getImageSrc = (path: string) => {
+      if (!path) return "";
+      if (path.startsWith("http")) return path;
+      return `http://localhost:8080${path}`;
   };
 
-  const TabButton = ({ id, label }: { id: string; label: string }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`px-4 py-3 font-medium transition-colors whitespace-nowrap
-            ${activeTab === id
-          ? "bg-blue-600 text-white border-b-2 border-blue-400"
-          : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-        }`}
-    >
-      {label}
-    </button>
+  // --- Sub-Components ---
+  const StatCard = ({ label, value, color, icon }: any) => (
+    <div className="bg-white border border-slate-200 p-6 rounded-2xl flex flex-col shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-4">
+          <span className="text-slate-500 text-sm font-semibold uppercase tracking-wider">
+            {label}
+          </span>
+          {icon && <div className={`p-2 rounded-lg bg-slate-50 text-slate-400`}>{icon}</div>}
+      </div>
+      <span className={`text-4xl font-bold ${color}`}>{value}</span>
+    </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-red-400 hover:text-red-300 border border-red-400 px-3 py-1 rounded"
-          >
-            Logout
-          </button>
+    <AdminLayout>
+      {/* Header Area */}
+      <div className="flex justify-between items-end mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            {activeTab === "recap" ? "Dashboard Overview" :
+             activeTab === "mahasiswa" ? "User Registrations" :
+             activeTab === "verifikasi_suara" ? "Vote Verification" :
+             activeTab === "kandidat" ? "Candidate Management" :
+             "Election Settings"}
+          </h1>
+          <p className="text-slate-500 text-sm">
+            Manage your election system efficiently.
+          </p>
         </div>
-
-        <div className="flex border-b border-gray-700 mb-8 overflow-x-auto">
-          <TabButton id="mahasiswa" label="Mahasiswa (Reg)" />
-          <TabButton id="verifikasi_suara" label="Verifikasi Suara" />
-          <TabButton id="kandidat" label="Kandidat" />
-          <TabButton id="recap" label="Recap (Hasil)" />
-        </div>
-
-        <div className="bg-gray-800 rounded-lg p-6 shadow-xl min-h-[400px]">
-          {/* --- MAHASISWA TAB (Registration) --- */}
-          {activeTab === "mahasiswa" && (
-            <div className="animate-slideIn">
-              <h2 className="text-xl font-bold mb-4">
-                Verifikasi Registrasi Mahasiswa
-              </h2>
-
-              {/* Search Input */}
-              <div className="mb-6">
-                <input
-                  type="text"
-                  placeholder="Cari berdasarkan NIM atau Nama..."
-                  value={userSearch}
-                  onChange={(e) => handleUserSearch(e.target.value)}
-                  className="w-full bg-gray-700 border border-gray-600 p-3 rounded text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {(isSearching && userSearch ? searchResults : verifications).map((v: any) => (
-                  <div
-                    key={v.ID}
-                    className="bg-gray-700 rounded-lg p-4 flex flex-col gap-4"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="font-bold text-lg">
-                          {v.Name || "No Name"}
-                        </div>
-                        <div className="font-mono text-gray-400">{v.NIM}</div>
-                      </div>
-                      <div className="flex gap-2">
-                        <a
-                          href={`http://localhost:8080/${v.ProfileImage}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="w-16 h-16 bg-black rounded block overflow-hidden"
-                        >
-                          <img
-                            src={`http://localhost:8080/${v.ProfileImage}`}
-                            className="w-full h-full object-cover"
-                            alt="Profile"
-                          />
-                        </a>
-                        <a
-                          href={`http://localhost:8080/${v.KTMImage}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="w-16 h-16 bg-black rounded block overflow-hidden"
-                        >
-                          <img
-                            src={`http://localhost:8080/${v.KTMImage}`}
-                            className="w-full h-full object-cover"
-                            alt="KTM"
-                          />
-                        </a>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedUser(v);
-                          setShowUserModal(true);
-                        }}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold"
-                      >
-                        Detail
-                      </button>
-                      <button
-                        onClick={() => handleVerifyUser(v.ID, "approve")}
-                        className="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded font-bold"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleVerifyUser(v.ID, "reject")}
-                        className="flex-1 bg-red-600 hover:bg-red-700 py-2 rounded font-bold"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
+        <div className="flex gap-3">
+            <div className="bg-white border border-slate-200 rounded-xl p-1 flex shadow-sm">
+                {["mahasiswa", "verifikasi_suara", "kandidat", "recap", "settings"].map(tab => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            activeTab === tab 
+                            ? "bg-emerald-50 text-emerald-700 shadow-sm" 
+                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                        }`}
+                    >
+                        {tab === "mahasiswa" && "Users"}
+                        {tab === "verifikasi_suara" && "Votes"}
+                        {tab === "kandidat" && "Candidates"}
+                        {tab === "recap" && "Results"}
+                        {tab === "settings" && "Settings"}
+                    </button>
                 ))}
-                {(isSearching && userSearch ? searchResults : verifications).length === 0 && (
-                  <p className="text-gray-500 italic">
-                    {isSearching && userSearch ? "Tidak ada hasil pencarian." : "Tidak ada antrian registrasi."}
-                  </p>
-                )}
-              </div>
             </div>
-          )}
-
-          {/* --- VERIFIKASI SUARA TAB (New) --- */}
-          {activeTab === "verifikasi_suara" && (
-            <div className="animate-slideIn">
-              <h2 className="text-xl font-bold mb-4">Verifikasi Suara Masuk</h2>
-
-              {/* Search Input */}
-              <div className="mb-6">
-                <input
-                  type="text"
-                  placeholder="Cari berdasarkan NIM atau Nama pemilih..."
-                  value={voteSearch}
-                  onChange={(e) => handleVoteSearch(e.target.value)}
-                  className="w-full bg-gray-700 border border-gray-600 p-3 rounded text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-6">
-                {(isSearching && voteSearch ? searchResults : pendingVotes).map((v: any) => (
-                  <div
-                    key={v.ID || v.id}
-                    className="bg-gray-700 rounded-lg p-4 flex flex-col md:flex-row gap-6 items-center"
-                  >
-                    <div className="flex-1">
-                      <div className="text-sm text-gray-400">Pemilih:</div>
-                      <div className="font-bold text-lg">{v.UserName || v.userName}</div>
-                      <div className="font-mono text-sm text-gray-400">{v.userNim || 'N/A'}</div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm text-gray-400">Memilih:</div>
-                      <div className="font-bold text-blue-400">
-                        {v.CandidateName || v.candidateName}
-                      </div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="text-center">
-                        <div className="text-xs mb-1">KTM</div>
-                        <a
-                          href={`http://localhost:8080/${v.KTMImage || v.ktmImage}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block w-24 h-16 bg-black rounded overflow-hidden"
-                        >
-                          <img
-                            src={`http://localhost:8080/${v.KTMImage || v.ktmImage}`}
-                            className="w-full h-full object-cover"
-                            alt="KTM"
-                          />
-                        </a>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-xs mb-1">Foto Diri</div>
-                        <a
-                          href={`http://localhost:8080/${v.SelfImage || v.selfImage}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block w-24 h-16 bg-black rounded overflow-hidden"
-                        >
-                          <img
-                            src={`http://localhost:8080/${v.SelfImage || v.selfImage}`}
-                            className="w-full h-full object-cover"
-                            alt="Self"
-                          />
-                        </a>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 w-full md:w-auto">
-                      <button
-                        onClick={() => {
-                          setSelectedVote({
-                            id: v.ID || v.id,
-                            userName: v.UserName || v.userName,
-                            userNim: v.userNim || 'N/A',
-                            userEmail: v.userEmail || 'N/A',
-                            candidateName: v.CandidateName || v.candidateName,
-                            ktmImage: v.KTMImage || v.ktmImage,
-                            selfImage: v.SelfImage || v.selfImage
-                          });
-                          setShowVoteModal(true);
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded font-bold"
-                      >
-                        Detail
-                      </button>
-                      <button
-                        onClick={() => handleVerifyVote(v.ID || v.id, "approve")}
-                        className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded font-bold"
-                      >
-                        Sah-kan
-                      </button>
-                      <button
-                        onClick={() => handleVerifyVote(v.ID || v.id, "reject")}
-                        className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded font-bold"
-                      >
-                        Tolak
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {(isSearching && voteSearch ? searchResults : pendingVotes).length === 0 && (
-                  <p className="text-gray-500 italic">
-                    {isSearching && voteSearch ? "Tidak ada hasil pencarian." : "Tidak ada suara pending."}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* --- KANDIDAT TAB --- */}
-          {activeTab === "kandidat" && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="bg-gray-700 p-4 rounded-lg h-fit">
-                <h3 className="text-lg font-bold mb-4">Tambah Kandidat</h3>
-                <form onSubmit={handleAddCandidate} className="space-y-3">
-                  <input
-                    placeholder="Nama Kandidat"
-                    className="w-full bg-gray-800 border border-gray-600 p-2 rounded text-white"
-                    value={newCandidate.name}
-                    onChange={(e) =>
-                      setNewCandidate({ ...newCandidate, name: e.target.value })
-                    }
-                    required
-                  />
-                  {/* Description field removed */}
-                  <textarea
-                    placeholder="Visi"
-                    className="w-full bg-gray-800 border border-gray-600 p-2 rounded text-white"
-                    value={newCandidate.visi}
-                    onChange={(e) =>
-                      setNewCandidate({ ...newCandidate, visi: e.target.value })
-                    }
-                    required
-                  />
-                  <textarea
-                    placeholder="Misi"
-                    className="w-full bg-gray-800 border border-gray-600 p-2 rounded text-white"
-                    value={newCandidate.misi}
-                    onChange={(e) =>
-                      setNewCandidate({ ...newCandidate, misi: e.target.value })
-                    }
-                    required
-                  />
-                  <input
-                    type="file"
-                    onChange={(e) =>
-                      e.target.files && setCandidateImg(e.target.files[0])
-                    }
-                    required
-                    className="text-sm text-gray-400 file:bg-gray-600 file:border-0 file:rounded file:text-white file:px-2 file:py-1 hover:file:bg-gray-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={candidateLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold disabled:opacity-50"
-                  >
-                    {candidateLoading ? "Saving..." : "Simpan Kandidat"}
-                  </button>
-                </form>
-              </div>
-              <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {candidates.map((c) => (
-                  <div
-                    key={c.ID}
-                    className="bg-gray-700 p-4 rounded-lg flex gap-4"
-                  >
-                    <img
-                      src={`http://localhost:8080${c.ImageURL}`}
-                      alt={c.Name}
-                      className="w-24 h-24 object-cover rounded bg-gray-800"
-                    />
-                    <div>
-                      <h4 className="font-bold text-lg">{c.Name}</h4>
-                      <div className="text-xs text-gray-400 mt-2 space-y-1">
-                        <p>
-                          <strong>Visi:</strong> {c.Visi || "-"}
-                        </p>
-                        <p>
-                          <strong>Misi:</strong> {c.Misi || "-"}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteCandidate(c.ID)}
-                        className="mt-2 text-xs text-red-400 hover:text-red-300 border border-red-500 px-2 py-1 rounded"
-                      >
-                        Delete Candidate
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* --- RECAP TAB (Formerly Suara) --- */}
-          {activeTab === "recap" && (
-            <div>
-              <h2 className="text-xl font-bold mb-4">
-                Hasil Perolehan Suara (Live Recap)
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left bg-gray-700 rounded-lg overflow-hidden">
-                  <thead className="bg-gray-600">
-                    <tr>
-                      <th className="p-4 w-24">Foto</th>
-                      <th className="p-4">Kandidat</th>
-                      <th className="p-4 text-right">Suara Sah (Approved)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <tr
-                        key={r.candidateId}
-                        className="border-b border-gray-600 hover:bg-gray-600"
-                      >
-                        <td className="p-4">
-                          <img
-                            src={`http://localhost:8080${r.imageUrl}`}
-                            alt={r.name}
-                            className="w-16 h-16 object-cover rounded"
-                          />
-                        </td>
-                        <td className="p-4 font-bold text-lg">{r.name}</td>
-                        <td className="p-4 text-right text-3xl font-bold text-green-400">
-                          {r.count}
-                        </td>
-                      </tr>
-                    ))}
-                    {results.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={3}
-                          className="p-8 text-center text-gray-400"
-                        >
-                          Belum ada suara yang disahkan.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+            <button
+                onClick={fetchData}
+                className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors text-slate-500 hover:text-emerald-600 shadow-sm"
+                title="Refresh Data"
+            >
+                <RefreshCw size={20} />
+            </button>
         </div>
       </div>
 
-      {/* Modals */}
-      <UserDetailModal
-        isOpen={showUserModal}
-        onClose={() => setShowUserModal(false)}
-        user={selectedUser}
-      />
-      <VoteDetailModal
-        isOpen={showVoteModal}
-        onClose={() => setShowVoteModal(false)}
-        vote={selectedVote}
-      />
-    </div>
+      {/* --- RECAP TAB --- */}
+      {activeTab === "recap" && (
+        <div className="space-y-8 animate-fade-in-up">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatCard
+              label="Total Votes Cast"
+              value={results.reduce((acc, curr) => acc + (curr.Count || curr.count || 0), 0)}
+              color="text-emerald-600"
+            />
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-900">Live Results</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="p-5">Candidate</th>
+                    <th className="p-5 text-right">Votes</th>
+                    <th className="p-5 text-right">Percentage</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {results.map((r, idx) => {
+                    const total = results.reduce((acc, curr) => acc + (curr.Count || curr.count || 0), 0);
+                    const count = r.Count || r.count || 0;
+                    const percent = total > 0 ? ((count / total) * 100).toFixed(1) : "0";
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-5 font-medium text-slate-900 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden">
+                                {r.imageUrl && <img src={getImageSrc(r.imageUrl)} className="w-full h-full object-cover" />}
+                            </div>
+                            {r.Name || r.name}
+                        </td>
+                        <td className="p-5 text-right font-mono text-xl text-emerald-600 font-bold">
+                          {count}
+                        </td>
+                        <td className="p-5 text-right text-slate-500">
+                          {percent}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {results.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="p-8 text-center text-slate-500">No votes recorded yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MAHASISWA TAB --- */}
+      {activeTab === "mahasiswa" && (
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm min-h-[400px]">
+            {verifications.length === 0 ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center h-full text-slate-400">
+                <CheckCircle2 size={48} className="mb-4 text-emerald-100" />
+                <p>All clear! No pending registrations.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 p-6">
+                {verifications.map((v) => (
+                  <div key={v.ID} className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col lg:flex-row gap-6 items-start lg:items-center hover:border-emerald-200 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4 mb-2">
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-200 border border-slate-300">
+                          <img src={getImageSrc(v.ProfileImage)} className="w-full h-full object-cover" alt="Profile" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-lg">{v.Name}</h4>
+                          <span className="text-slate-500 font-mono text-sm bg-white border border-slate-200 px-2 py-0.5 rounded">{v.NIM}</span>
+                        </div>
+                      </div>
+                      <p className="text-slate-500 text-sm ml-16">{v.Email}</p>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <a href={getImageSrc(v.KTMImage)} target="_blank" rel="noreferrer" className="group relative block w-32 h-20 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 hover:border-emerald-500 transition-colors">
+                         <img src={getImageSrc(v.KTMImage)} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                         <span className="absolute bottom-0 left-0 bg-slate-900/70 text-white text-[10px] w-full text-center py-1 backdrop-blur-sm">View KTM</span>
+                      </a>
+                    </div>
+
+                    <div className="flex gap-2 w-full lg:w-auto mt-4 lg:mt-0">
+                      <button onClick={() => handleVerifyUser(v.ID, "approve")} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+                        <CheckCircle2 size={16} /> Approve
+                      </button>
+                      <button onClick={() => handleVerifyUser(v.ID, "reject")} className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-red-50 text-red-500 border border-red-200 hover:border-red-300 rounded-lg font-medium transition-all">
+                        <XCircle size={16} /> Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* --- VERIFIKASI SUARA TAB --- */}
+      {activeTab === "verifikasi_suara" && (
+        <div className="space-y-6">
+          {pendingVotes.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400">
+              No pending votes to verify.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {pendingVotes.map((v) => (
+                <div key={v.ID} className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col md:flex-row gap-8 items-center shadow-sm">
+                  <div className="flex-1">
+                    <h4 className="text-slate-400 text-xs uppercase tracking-wider mb-1 font-bold">Voter</h4>
+                    <p className="font-bold text-lg text-slate-900">{v.user_name || v.UserName}</p>
+                  </div>
+                  <div className="flex-1 border-l border-slate-100 pl-8">
+                     <h4 className="text-slate-400 text-xs uppercase tracking-wider mb-1 font-bold">Voted For</h4>
+                    <p className="font-bold text-lg text-emerald-600">{v.candidate_name || v.CandidateName}</p>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="text-center">
+                      <span className="text-[10px] text-slate-400 mb-1 block uppercase font-bold">KTM Record</span>
+                       <a href={getImageSrc(v.KTMImage)} target="_blank" className="block w-20 h-20 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden hover:scale-105 transition-transform shadow-sm">
+                          <img src={getImageSrc(v.KTMImage)} className="w-full h-full object-cover" />
+                       </a>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-[10px] text-slate-400 mb-1 block uppercase font-bold">Verification</span>
+                       <a href={getImageSrc(v.SelfImage)} target="_blank" className="block w-20 h-20 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden hover:scale-105 transition-transform shadow-sm">
+                          <img src={getImageSrc(v.SelfImage)} className="w-full h-full object-cover" />
+                       </a>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 min-w-[140px]">
+                     <button onClick={() => handleVerifyVote(v.ID, "approve")} className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-emerald-200 shadow-md transition-all">VALIDATE</button>
+                      <button onClick={() => handleVerifyVote(v.ID, "reject")} className="w-full py-2 bg-white hover:bg-red-50 text-slate-500 hover:text-red-500 border border-slate-200 hover:border-red-200 rounded-lg transition-all">INVALID</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- KANDIDAT TAB --- */}
+      {activeTab === "kandidat" && (
+        <div className="space-y-8">
+          <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+             <h2 className="font-bold text-xl ml-2 text-slate-900">Candidates</h2>
+             <button
+                onClick={() => setIsAddCandidateOpen(!isAddCandidateOpen)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors ${isAddCandidateOpen ? 'bg-red-50 text-red-600' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200'}`}
+             >
+                {isAddCandidateOpen ? <><XCircle size={18}/> Cancel</> : <><Plus size={18}/> Add Candidate</>}
+             </button>
+          </div>
+
+          {isAddCandidateOpen && (
+            <div className="bg-white border border-slate-200 p-8 rounded-2xl max-w-2xl mx-auto shadow-xl animate-fade-in">
+                <h3 className="text-2xl font-bold mb-8 text-slate-900 text-center">New Candidate</h3>
+                <form onSubmit={handleAddCandidate} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+                    <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Candidate Name" value={newCandidate.name} onChange={e => setNewCandidate({...newCandidate, name: e.target.value})} required />
+                  </div>
+                  <div className="grid grid-cols-1 gap-6">
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Vision (Visi)</label>
+                        <textarea className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 min-h-[100px] focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Short, inspiring vision..." value={newCandidate.visi} onChange={e => setNewCandidate({...newCandidate, visi: e.target.value})} required />
+                     </div>
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Mission (Misi)</label>
+                        <textarea className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 min-h-[100px] focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Detailed mission points..." value={newCandidate.misi} onChange={e => setNewCandidate({...newCandidate, misi: e.target.value})} required />
+                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Photo</label>
+                    <input type="file" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer bg-slate-50 rounded-xl border border-slate-200" onChange={e => e.target.files && setCandidateImg(e.target.files[0])} required />
+                  </div>
+                  <button type="submit" disabled={submitting} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-200 mt-4">
+                    {submitting ? "Saving..." : "Create Candidate"}
+                  </button>
+                </form>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {candidates.map(c => (
+              <div key={c.ID} className="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:border-emerald-200 hover:shadow-lg transition-all duration-300">
+                <div className="aspect-video relative overflow-hidden">
+                   <img src={getImageSrc(c.ImageURL)} alt={c.Name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60" />
+                   <h3 className="absolute bottom-4 left-4 font-bold text-xl text-white drop-shadow-md">{c.Name}</h3>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <h4 className="text-xs uppercase text-emerald-600 font-bold mb-1 tracking-wider">Visi</h4>
+                    <p className="text-sm text-slate-600 line-clamp-2">{c.Visi || "No vision provided."}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-xs uppercase text-emerald-600 font-bold mb-1 tracking-wider">Misi</h4>
+                    <p className="text-sm text-slate-600 line-clamp-3">{c.Misi || "No mission provided."}</p>
+                  </div>
+                  <div className="pt-4 border-t border-slate-100">
+                    <button onClick={() => handleDeleteCandidate(c.ID)} className="w-full py-2.5 flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium">
+                      <Trash2 size={16} /> Delete Candidate
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* --- SETTINGS TAB --- */}
+      {activeTab === "settings" && (
+        <div className="max-w-xl mx-auto bg-white border border-slate-200 rounded-2xl p-10 shadow-sm mt-8">
+            <h3 className="text-2xl font-bold mb-8 text-slate-900 border-b border-slate-100 pb-4">Election Timing</h3>
+            <form onSubmit={handleSaveSettings} className="space-y-6">
+                <div>
+                    <label className="block text-slate-600 font-medium mb-2">Start Time</label>
+                    <input type="datetime-local" value={electionSettings.startTime} onChange={(e) => setElectionSettings({...electionSettings, startTime: e.target.value})} className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-3.5 focus:ring-2 focus:ring-emerald-500 outline-none" />
+                </div>
+                <div>
+                     <label className="block text-slate-600 font-medium mb-2">End Time</label>
+                     <input type="datetime-local" value={electionSettings.endTime} onChange={(e) => setElectionSettings({...electionSettings, endTime: e.target.value})} className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-3.5 focus:ring-2 focus:ring-emerald-500 outline-none" />
+                 </div>
+                 <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-lg shadow-emerald-200 mt-4">Save Settings</button>
+            </form>
+        </div>
+      )}
+    </AdminLayout>
   );
 };
 

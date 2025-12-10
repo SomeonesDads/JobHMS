@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import Steps from '../components/Steps';
+import { UploadCloud, Check, User, CreditCard } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 const VerifPage = () => {
     const navigate = useNavigate();
+    const { success, error: showError } = useToast();
     const [user] = useState(() => {
         const saved = localStorage.getItem('user');
         return saved ? JSON.parse(saved) : null;
     });
     const [profileImg, setProfileImg] = useState<File | null>(null);
     const [ktmImg, setKtmImg] = useState<File | null>(null);
-    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -29,11 +31,10 @@ const VerifPage = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!profileImg || !ktmImg) {
-            setError("Kedua foto harus di-upload");
+            showError("Both photos are required for verification");
             return;
         }
 
-        setError('');
         setLoading(true);
 
         const formData = new FormData();
@@ -45,57 +46,75 @@ const VerifPage = () => {
             await api.post('/upload-verification', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
+            success("Verification data uploaded successfully");
             navigate('/vote');
         } catch (err: any) {
             console.error(err);
-            setError(err.response?.data?.error || 'Upload failed');
+            showError(err.response?.data?.error || 'Upload failed');
         } finally {
             setLoading(false);
         }
     };
 
+    const UploadBox = ({ id, label, icon, file, setFile }: { id: string, label: string, icon: any, file: File | null, setFile: any }) => (
+        <div 
+            className={`cursor-pointer group relative border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all bg-white
+                ${file ? 'border-emerald-500 bg-emerald-50/30' : 'border-slate-300 hover:border-emerald-400 hover:bg-slate-50'}`}
+            onClick={() => (document.getElementById(id) as HTMLInputElement).click()}
+        >
+            <input id={id} type="file" accept="image/*" className="hidden" 
+                onChange={(e) => handleFileChange(e, setFile)} />
+            
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors
+                ${file ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-500'}`}>
+                {file ? <Check size={32} /> : icon}
+            </div>
+            
+            <h4 className="font-bold text-slate-700 mb-1">{label}</h4>
+            <span className="text-sm text-slate-500 text-center max-w-[200px] truncate">
+                {file ? file.name : "Click to select image"}
+            </span>
+        </div>
+    );
+
     return (
-        <div className="min-h-screen bg-gray-200 p-8">
-            <div className="max-w-3xl mx-auto">
+        <div className="min-h-screen bg-slate-50 p-6 md:p-12">
+            <div className="max-w-4xl mx-auto">
                 <Steps currentStep={1} />
 
-                <div className="bg-white bg-opacity-75 p-8 rounded-lg shadow-md">
-                    <h3 className="text-xl font-bold text-center text-gray-800">Pemilu HMS ITB 2025</h3>
-                    <h1 className="text-4xl font-bold text-center text-gray-800">Verifikasi Data</h1>
-                    <p className="text-center text-sm text-gray-600 mb-8">Upload foto diri dengan KTM untuk lanjut dengan pemilihan</p>
+                <div className="bg-white p-8 md:p-12 rounded-3xl shadow-xl border border-slate-100 mt-8 text-center">
+                    <h3 className="text-emerald-600 font-bold tracking-widest uppercase text-sm mb-2">Identity Verification</h3>
+                    <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Verify Your Eligiblity</h1>
+                    <p className="text-slate-500 max-w-lg mx-auto mb-10">
+                        To ensure a fair election, please upload a clear photo of yourself holding your Student ID (KTM) and a separate photo of your KTM.
+                    </p>
 
-                    {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-6">{error}</div>}
-
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Profile Image Input */}
-                            <div className="border-2 border-dashed border-green-900 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition h-48 gap-4"
-                                onClick={() => (document.getElementById('profileInput') as HTMLInputElement).click()}>
-                                <input id="profileInput" type="file" accept="image/*" className="hidden"
-                                    onChange={(e) => handleFileChange(e, setProfileImg)} />
-                                <img src="/self.png" alt="foto diri" className="h-24 opacity-50"></img>
-                                <div className="text-gray-500 font-medium text-center">
-                                    {profileImg ? profileImg.name : "Klik untuk mengunggah foto diri"}
-                                </div>
-                            </div>
-
-                            {/* KTM Image Input */}
-                            <div className="border-2 border-dashed border-green-900 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition h-48 gap-4"
-                                onClick={() => (document.getElementById('ktmInput') as HTMLInputElement).click()}>
-                                <input id="ktmInput" type="file" accept="image/*" className="hidden"
-                                    onChange={(e) => handleFileChange(e, setKtmImg)} />
-                                <img src="/id.png" alt="ktm" className="h-24 opacity-75"></img>
-                                <div className="text-gray-500 font-medium text-center">
-                                    {ktmImg ? ktmImg.name : "Klik untuk menggunggah foto ktm"}
-                                </div>
-                            </div>
+                            <UploadBox 
+                                id="profileInput" 
+                                label="Selfie with KTM" 
+                                icon={<User size={32} />} 
+                                file={profileImg} 
+                                setFile={setProfileImg} 
+                            />
+                            <UploadBox 
+                                id="ktmInput" 
+                                label="KTM Photo" 
+                                icon={<CreditCard size={32} />} 
+                                file={ktmImg} 
+                                setFile={setKtmImg} 
+                            />
                         </div>
 
-                        <div className="flex justify-center mt-8">
+                        <div className="pt-4 max-w-md mx-auto">
                             <button type="submit" disabled={loading}
-                                className="w-full md:w-1/2 bg-green-900 text-white py-3 rounded-lg font-semibold hover:bg-green-950 disabled:opacity-50 transition duration-200 shadow-md">
-                                {loading ? 'Uploading...' : 'Submit Verifikasi'}
+                                className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transform hover:-translate-y-1">
+                                {loading ? 'Uploading Verification...' : 'Submit & Continue to Vote'}
                             </button>
+                            <p className="text-xs text-slate-400 mt-4">
+                                By submitting, you declare that the provided data is authentic.
+                            </p>
                         </div>
                     </form>
                 </div>
