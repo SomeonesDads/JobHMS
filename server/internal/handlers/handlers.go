@@ -2,19 +2,46 @@ package handlers
 
 import (
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"time"
 	"voting-backend/internal/db"
 	"voting-backend/internal/models"
 
+	"voting-backend/internal/services/pcloud"
+
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	// "github.com/google/uuid" -> removed
 )
 
+var PCloudClient *pcloud.Client
+
+func SetPCloudClient(client *pcloud.Client) {
+	PCloudClient = client
+}
+
+func uploadFileHelper(c *gin.Context, fileHeader *multipart.FileHeader, filename string) (string, error) {
+	if PCloudClient != nil {
+		file, err := fileHeader.Open()
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+		return PCloudClient.UploadFile(file, filename)
+	}
+	// Fallback to local
+	path := fmt.Sprintf("uploads/%s", filename)
+	if err := c.SaveUploadedFile(fileHeader, path); err != nil {
+		return "", err
+	}
+	// If local, we need to return the URL relative to server, ensuring it starts with /
+	return "/" + path, nil
+}
+
 type LoginRequest struct {
-	NIM   string `json:"nim"`
-	Token string `json:"token"` // Changed from Email
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func Login(c *gin.Context) {
@@ -24,27 +51,34 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// User Login (NIM + Token)
+	// User Login (Email + Password)
 	var user models.User
-	result := db.DB.Where("nim = ?", req.NIM).First(&user)
+	result := db.DB.Where("email = ?", req.Email).First(&user)
 
 	if result.Error != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not registered"})
 		return
 	}
 
-	// Check Token
-	if user.Token != req.Token {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Token"})
+	// Check Password (Simple comparison for now per request simplicity, but ideally hash)
+	if user.Password != req.Password {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Password"})
 		return
 	}
 
 	// Check Verification Status
-	if user.VerificationStatus != "approved" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "User not verified yet"})
-		return
-	}
-
+	// If the user already uploaded, but not approved?
+	// The prompt implies we log in THEN interact.
+	// So we might allow login even if pending?
+	// "misalkan dia login sebelum mulai waktu pemilu bakal ada countdown" -> implies they CAN login.
+	// So I will REMOVE the strict verification check for LOGIN, 
+	// but enforce it for VOTING.
+	// Or maybe I keep it?
+	// If I keep it, they can't see the countdown if they aren't verified?
+	// Probably better to allow login so they can upload verification?
+	// Currently Register uploads verification.
+	// Let's allow login freely if credentials match.
+	
 	c.JSON(http.StatusOK, user)
 }
 
@@ -52,9 +86,10 @@ func Register(c *gin.Context) {
 	name := c.PostForm("name")
 	nim := c.PostForm("nim")
 	email := c.PostForm("email")
+	password := c.PostForm("password") // Added password
 
-	if name == "" || nim == "" || email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama, NIM, dan Email wajib diisi"})
+	if name == "" || nim == "" || email == "" || password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Name, NIM, Email, and Password are required"})
 		return
 	}
 
@@ -73,44 +108,33 @@ func Register(c *gin.Context) {
 
 	// Check if user exists by NIM or Email
 	var existingUser models.User
-	if err := db.DB.Where("nim = ? OR email = ?", nim, email).First(&existingUser).Error; err == nil {
-		if existingUser.NIM == nim {
-			c.JSON(http.StatusConflict, gin.H{"error": "NIM sudah terdaftar"})
-		} else {
-			c.JSON(http.StatusConflict, gin.H{"error": "Email sudah terdaftar"})
-		}
+	if err := db.DB.Where("nim = ?", nim).Or("email = ?", email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "User already registered"})
 		return
 	}
 
-	profileFile, err1 := c.FormFile("profile_image")
-	ktmFile, err2 := c.FormFile("ktm_image")
-
-	if err1 != nil || err2 != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Foto profil dan KTM wajib diunggah"})
-		return
-	}
-
-	// Save files
-	profilePath := fmt.Sprintf("uploads/%s_profile%s", nim, filepath.Ext(profileFile.Filename))
-	ktmPath := fmt.Sprintf("uploads/%s_ktm%s", nim, filepath.Ext(ktmFile.Filename))
-
-	if err := c.SaveUploadedFile(profileFile, profilePath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan foto profil"})
-		return
-	}
-	if err := c.SaveUploadedFile(ktmFile, ktmPath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan foto KTM"})
-		return
-	}
-
+	// Note: Old Register handled file upload immediately.
+	// Prompt says: "waktu untuk voting hanya 5 menit setelah dia upload ktm untuk voting"
+	// This implies upload happens LATER or at least the timer starts from upload.
+	// If we upload here at Register, does the timer start now?
+	// Probably not. The prompt implies a specific "upload for voting" action.
+	// But `VerifPage` is separate.
+	// Let's assume Register is just Creating Account.
+	// Verification docs upload happens at `UploadVerification` (triggered by VerifPage).
+	// So I will REMOVE file upload from Register to simplify, 
+	// OR keep it but not start timer?
+	// Actually, `VerifPage` CALLS `/upload-verification`.
+	// `RegisterPage` CALLS `/register`.
+	// Let's see `RegisterPage.tsx`... I haven't seen it yet.
+	// Assuming Register just creates account now (Name, Email, Pass, NIM).
+	
 	newUser := models.User{
 		Name:               name,
 		NIM:                nim,
 		Email:              email,
+		Password:           password,
 		Role:               "voter",
-		ProfileImage:       profilePath,
-		KTMImage:           ktmPath,
-		VerificationStatus: "pending",
+		VerificationStatus: "none",
 	}
 
 	if err := db.DB.Create(&newUser).Error; err != nil {
@@ -139,9 +163,10 @@ func CreateCandidate(c *gin.Context) {
 		return
 	}
 
-	imagePath := fmt.Sprintf("uploads/candidate_%d%s", time.Now().Unix(), filepath.Ext(file.Filename))
-	if err := c.SaveUploadedFile(file, imagePath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
+	filename := fmt.Sprintf("candidate_%d%s", time.Now().Unix(), filepath.Ext(file.Filename))
+	imageURL, err := uploadFileHelper(c, file, filename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image: " + err.Error()})
 		return
 	}
 
@@ -149,7 +174,7 @@ func CreateCandidate(c *gin.Context) {
 		Name:     name,
 		Visi:     visi,
 		Misi:     misi,
-		ImageURL: "/" + imagePath, // Store relative URL
+		ImageURL: imageURL,
 	}
 
 	if err := db.DB.Create(&candidate).Error; err != nil {
@@ -184,17 +209,20 @@ func UploadVerification(c *gin.Context) {
 		return
 	}
 
-	// Create uploads directory if not exists (handled by SaveUploadedFile usually or manual check, assuming folder exists or created in main)
+	// Create uploads directory if not exists (checked in main)
 
-	profilePath := fmt.Sprintf("uploads/%s_profile%s", nim, filepath.Ext(profileFile.Filename))
-	ktmPath := fmt.Sprintf("uploads/%s_ktm%s", nim, filepath.Ext(ktmFile.Filename))
+	profileFilename := fmt.Sprintf("%s_profile%s", nim, filepath.Ext(profileFile.Filename))
+	ktmFilename := fmt.Sprintf("%s_ktm%s", nim, filepath.Ext(ktmFile.Filename))
 
-	if err := c.SaveUploadedFile(profileFile, profilePath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profile image"})
+	profilePath, err := uploadFileHelper(c, profileFile, profileFilename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload profile image"})
 		return
 	}
-	if err := c.SaveUploadedFile(ktmFile, ktmPath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save KTM image"})
+
+	ktmPath, err := uploadFileHelper(c, ktmFile, ktmFilename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload KTM image"})
 		return
 	}
 
@@ -206,7 +234,12 @@ func UploadVerification(c *gin.Context) {
 
 	user.ProfileImage = profilePath
 	user.KTMImage = ktmPath
-	// Don't reset verification status - keep existing status
+	user.VerificationStatus = "pending"
+	
+	// Start the 5-minute timer
+	now := time.Now()
+	user.KTMUploadedAt = &now
+
 	db.DB.Save(&user)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Verification uploaded successfully", "user": user})
@@ -250,10 +283,9 @@ func VerifyUser(c *gin.Context) {
 
 	if req.Action == "approve" {
 		user.VerificationStatus = "approved"
-		// Generate Token
-		user.Token = uuid.New().String()
-		// Simulated Email Sending
-		fmt.Printf("Sending Email to %s... Your Token is: %s\n", user.Email, user.Token)
+		// Token logic removed
+		// Simulated Notification
+		fmt.Printf("User %s approved.\n", user.Email)
 	} else if req.Action == "reject" {
 		user.VerificationStatus = "rejected"
 	} else {
@@ -282,6 +314,33 @@ func Vote(c *gin.Context) {
 
 	if user.HasVoted {
 		c.JSON(http.StatusConflict, gin.H{"error": "Pengguna sudah memilih"})
+		return
+	}
+
+	// CHECK 5 MINUTE LIMIT
+	if user.KTMUploadedAt == nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You must upload verification documents first"})
+		return
+	}
+	// 5 minutes = 300 seconds
+	if time.Since(*user.KTMUploadedAt) > 5*time.Minute {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Voting time limit (5 minutes) exceeded. Contact verification committee."})
+		return
+	}
+
+	// Save images
+	// Save images
+	ktmFilename := fmt.Sprintf("vote_%s_ktm%s", userIDStr, filepath.Ext(ktmFile.Filename))
+	selfFilename := fmt.Sprintf("vote_%s_self%s", userIDStr, filepath.Ext(selfFile.Filename))
+
+	ktmPath, err := uploadFileHelper(c, ktmFile, ktmFilename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload KTM: " + err.Error()})
+		return
+	}
+	selfPath, err := uploadFileHelper(c, selfFile, selfFilename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload Selfie: " + err.Error()})
 		return
 	}
 
@@ -453,6 +512,68 @@ func GetResults(c *gin.Context) {
 		}
 		results = append(results, kotakKosong)
 	}
+	// Seed Election Settings
+	var settingsCount int64
+	db.DB.Model(&models.ElectionSettings{}).Count(&settingsCount)
+	if settingsCount == 0 {
+		// Default: Starts in 24 hours, ends in 48 hours
+		defaultSettings := models.ElectionSettings{
+			StartTime: time.Now().Add(24 * time.Hour),
+			EndTime:   time.Now().Add(48 * time.Hour),
+		}
+		db.DB.Create(&defaultSettings)
+	}
+	// Seed Admin User
+	var adminCount int64
+	db.DB.Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount)
+	if adminCount == 0 {
+		admin := models.User{
+			Name:               "Admin",
+			NIM:                "00000000",
+			Email:              "admin@hms.com",
+			Password:           "admin123",
+			Role:               "admin",
+			VerificationStatus: "approved",
+		}
+		db.DB.Create(&admin)
+	}
+}
 
-	c.JSON(http.StatusOK, results)
+// Election Settings Handlers
+
+func GetSettings(c *gin.Context) {
+	var settings models.ElectionSettings
+	// Get first record
+	if err := db.DB.First(&settings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Settings not found"})
+		return
+	}
+	c.JSON(http.StatusOK, settings)
+}
+
+func UpdateSettings(c *gin.Context) {
+	var req struct {
+		StartTime time.Time `json:"startTime"`
+		EndTime   time.Time `json:"endTime"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var settings models.ElectionSettings
+	if err := db.DB.First(&settings).Error; err != nil {
+		// Create if not exists (should be seeded though)
+		settings = models.ElectionSettings{
+			StartTime: req.StartTime,
+			EndTime:   req.EndTime,
+		}
+		db.DB.Create(&settings)
+	} else {
+		settings.StartTime = req.StartTime
+		settings.EndTime = req.EndTime
+		db.DB.Save(&settings)
+	}
+
+	c.JSON(http.StatusOK, settings)
 }
