@@ -25,11 +25,10 @@ type ElectionSettings struct {
 }
 
 type Candidate struct {
-	ID   uint `gorm:"primaryKey"`
-	Name string
-	// Description removed
-	Visi     string // Added Visi
-	Misi     string // Added Misi
+	ID       uint `gorm:"primaryKey"`
+	Name     string
+	Visi     string
+	Misi     string
 	ImageURL string
 }
 
@@ -38,7 +37,7 @@ type Vote struct {
 	UserID      uint
 	CandidateID uint
 	Timestamp   time.Time
-	KTMImage    string // Added
-	SelfImage   string // Added
-	IsApproved  bool   `gorm:"default:false"` // Added
+	KTMImage    string
+	SelfImage   string
+	IsApproved  bool `gorm:"default:false"`
 }

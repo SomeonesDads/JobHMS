@@ -44,9 +44,10 @@ interface Candidate {
 }
 
 interface Result {
-  CandidateID: number;
-  Name: string;
-  Count: number;
+  candidateId: number;
+  name: string;
+  imageUrl: string;
+  count: number;
 }
 
 const AdminPage = () => {
@@ -369,6 +370,15 @@ const AdminPage = () => {
                     </div>
 
                     <div className="flex gap-2 w-full lg:w-auto mt-4 lg:mt-0">
+                      <button
+                        onClick={() => {
+                          setSelectedUser(v);
+                          setShowUserModal(true);
+                        }}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold"
+                      >
+                        Detail
+                      </button>
                       <button
                         onClick={() => handleVerifyUser(v.ID, "approve")}
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors shadow-sm"

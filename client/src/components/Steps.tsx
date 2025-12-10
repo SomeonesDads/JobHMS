@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface StepsProps {
-  currentStep: number;
+    currentStep: number;
 }
 
 const Steps: React.FC<StepsProps> = ({ currentStep }) => {
@@ -40,3 +40,4 @@ const Steps: React.FC<StepsProps> = ({ currentStep }) => {
 };
 
 export default Steps;
+
