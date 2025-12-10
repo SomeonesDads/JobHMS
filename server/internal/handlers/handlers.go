@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"time"
 	"voting-backend/internal/db"
+	"voting-backend/internal/email"
 	"voting-backend/internal/imgbb"
 	"voting-backend/internal/models"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -72,10 +74,10 @@ func Login(c *gin.Context) {
 func Register(c *gin.Context) {
 	name := c.PostForm("name")
 	nim := c.PostForm("nim")
-	email := c.PostForm("email")
+	userEmail := c.PostForm("email")
 	password := c.PostForm("password")
 
-	if name == "" || nim == "" || email == "" || password == "" {
+	if name == "" || nim == "" || userEmail == "" || password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama, NIM, Email, dan Password wajib diisi"})
 		return
 	}
@@ -95,7 +97,7 @@ func Register(c *gin.Context) {
 
 	// Check if user exists by NIM or Email
 	var existingUser models.User
-	if err := db.DB.Where("nim = ? OR email = ?", nim, email).First(&existingUser).Error; err == nil {
+	if err := db.DB.Where("nim = ? OR email = ?", nim, userEmail).First(&existingUser).Error; err == nil {
 		if existingUser.NIM == nim {
 			c.JSON(http.StatusConflict, gin.H{"error": "NIM sudah terdaftar"})
 		} else {
@@ -134,7 +136,7 @@ func Register(c *gin.Context) {
 	newUser := models.User{
 		Name:               name,
 		NIM:                nim,
-		Email:              email,
+		Email:              userEmail,
 		Password:           &passStr,
 		Role:               "voter",
 		ProfileImage:       profileLink,
@@ -146,6 +148,10 @@ func Register(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mendaftarkan pengguna"})
 		return
 	}
+
+    go func() {
+        email.SendWelcomeEmail(newUser.Email, newUser.Name)
+    }()
 
 	c.JSON(http.StatusCreated, newUser)
 }
@@ -349,7 +355,25 @@ func Vote(c *gin.Context) {
 		return
 	}
 
+	if err := tx.Create(&vote).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memberikan suara"})
+		return
+	}
+
 	tx.Commit()
+
+    go func() {
+        candidateName := "Kotak Kosong"
+        if candidateIDStr != "0" {
+            var cand models.Candidate
+            if err := db.DB.First(&cand, vote.CandidateID).Error; err == nil {
+                candidateName = cand.Name
+            }
+        }
+        email.SendVoteConfirmation(user.Email, user.Name, candidateName)
+    }()
+
 	c.JSON(http.StatusOK, gin.H{"message": "Suara berhasil diberikan"})
 }
 
