@@ -1,80 +1,94 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../api";
+import { useToast } from "../contexts/ToastContext";
 
 const LoginPage = () => {
-  const [nim, setNim] = useState("");
-  const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  const { success, error: showError } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await api.post("/login", { nim, token });
+      const response = await api.post("/login", { email, password });
       localStorage.setItem("user", JSON.stringify(response.data));
-      navigate("/verif");
+      success("Login successful! Welcome back.");
+      if (response.data.Role === 'admin') {
+        navigate("/admin");
+      } else {
+        navigate("/vote");
+      }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed");
+      const msg = err.response?.data?.error || "Login failed";
+      setError(msg);
+      showError(msg);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-200">
-      <div className="flex flex-col bg-white bg-opacity-75 p-8 rounded-lg shadow-md w-[500px] gap-4">
-        <div className="flex justify-center items-center gap-5">
-          <img src="/logo_hms.png" alt="logo HMS" className="h-16 w-16 rounded-full"></img>
-          <img src="/logopanit.png" alt="logo panitia" className="h-16 w-16 rounded-full"></img>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
+        <div className="flex justify-center items-center gap-6 mb-8">
+          <img src="/logo_hms.png" alt="logo HMS" className="h-16 w-16 drop-shadow-sm rounded-full object-cover"></img>
+          <img src="/logopanit.png" alt="logo panitia" className="h-16 w-16 drop-shadow-sm rounded-full object-cover"></img>
         </div>
-        <div className="gap-0">
-          <h2 className="text-4xl font-bold text-center text-gray-800">
-            PEMILU HMS ITB 2025
+        
+        <div className="text-center mb-10">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Pemilu HMS ITB 2025
           </h2>
-          <h2 className="text-lg font-bold text-center text-gray-800">
+          <p className="text-slate-500 mt-2 text-sm">
             Pemilihan Ketua Umum BP ITB 2025/2026
-          </h2>
+          </p>
         </div>
 
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
-
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 uppercase">
-              NIM
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Email Address
             </label>
             <input
-              type="text"
-              value={nim}
-              onChange={(e) => setNim(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-black rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
-              placeholder="150xxxxx"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+              placeholder="name@example.com"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 uppercase">
-              TOKEN
-            </label>
+            <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-slate-700">
+                Password
+                </label>
+            </div>
             <input
-              type="text"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-black rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
-              placeholder="Masukkan Token dari Email"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+              placeholder="••••••••"
               required
             />
           </div>
           <button
             type="submit"
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-900 hover:bg-green-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 uppercase"
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform active:scale-95"
           >
-            masuk
+            Sign In
           </button>
         </form>
 
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
-            Belum punya akun? <Link to="/register" className="text-blue-600 hover:underline">Daftar di sini</Link>
+        <div className="mt-8 text-center">
+          <p className="text-sm text-slate-500">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-emerald-600 font-semibold hover:text-emerald-700 transition-colors">
+              Create Account
+            </Link>
           </p>
         </div>
       </div>

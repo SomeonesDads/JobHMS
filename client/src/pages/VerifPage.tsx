@@ -55,46 +55,69 @@ const VerifPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-200 p-8">
-            <div className="max-w-3xl mx-auto">
-                <Steps currentStep={1} />
+        <div className="min-h-screen bg-slate-50 p-8 flex flex-col items-center">
+            <div className="w-full max-w-3xl">
+                <Steps currentStep={2} /> {/* Note: Registrasi is step 1, Verif is 2 */}
+                
+                <div className="bg-white p-10 rounded-2xl shadow-xl w-full border border-slate-100">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Verification</h1>
+                        <p className="text-slate-500 text-sm">
+                            Upload a selfie and your Student ID (KTM) to proceed.
+                        </p>
+                    </div>
 
-                <div className="bg-white bg-opacity-75 p-8 rounded-lg shadow-md">
-                    <h3 className="text-xl font-bold text-center text-gray-800">Pemilu HMS ITB 2025</h3>
-                    <h1 className="text-4xl font-bold text-center text-gray-800">Verifikasi Data</h1>
-                    <p className="text-center text-sm text-gray-600 mb-8">Upload foto diri dengan KTM untuk lanjut dengan pemilihan</p>
+                    <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-8 rounded-r-lg">
+                        <div className="flex">
+                            <div className="ml-3">
+                                <p className="text-sm text-amber-800">
+                                    <span className="font-bold">ATTENTION:</span> You will have exactly <span className="font-bold">5 MINUTES</span> to vote after uploading your verification. Be ready!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
 
-                    {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-6">{error}</div>}
+                    {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 text-sm mb-6">{error}</div>}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <form onSubmit={handleSubmit} className="space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Profile Image Input */}
-                            <div className="border-2 border-dashed border-green-900 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition h-48 gap-4"
+                            <div className="group relative border-2 border-dashed border-slate-300 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 hover:border-emerald-500 transition-all duration-300 h-64 gap-4"
                                 onClick={() => (document.getElementById('profileInput') as HTMLInputElement).click()}>
                                 <input id="profileInput" type="file" accept="image/*" className="hidden"
                                     onChange={(e) => handleFileChange(e, setProfileImg)} />
-                                <img src="/self.png" alt="foto diri" className="h-24 opacity-50"></img>
-                                <div className="text-gray-500 font-medium text-center">
-                                    {profileImg ? profileImg.name : "Klik untuk mengunggah foto diri"}
+                                <div className="bg-emerald-50 p-4 rounded-full group-hover:bg-emerald-100 transition-colors">
+                                    <img src="/self.png" alt="foto diri" className="h-12 w-12 opacity-60 group-hover:opacity-100 transition-opacity"></img>
+                                </div>
+                                <div className="text-center space-y-1">
+                                    <p className="text-slate-700 font-medium">Your Selfie</p>
+                                    <p className="text-slate-400 text-sm overflow-hidden text-ellipsis px-4 max-w-xs">
+                                        {profileImg ? profileImg.name : "Click to upload"}
+                                    </p>
                                 </div>
                             </div>
 
                             {/* KTM Image Input */}
-                            <div className="border-2 border-dashed border-green-900 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition h-48 gap-4"
+                            <div className="group relative border-2 border-dashed border-slate-300 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 hover:border-emerald-500 transition-all duration-300 h-64 gap-4"
                                 onClick={() => (document.getElementById('ktmInput') as HTMLInputElement).click()}>
                                 <input id="ktmInput" type="file" accept="image/*" className="hidden"
                                     onChange={(e) => handleFileChange(e, setKtmImg)} />
-                                <img src="/id.png" alt="ktm" className="h-24 opacity-75"></img>
-                                <div className="text-gray-500 font-medium text-center">
-                                    {ktmImg ? ktmImg.name : "Klik untuk menggunggah foto ktm"}
+                                <div className="bg-amber-50 p-4 rounded-full group-hover:bg-amber-100 transition-colors">
+                                    <img src="/id.png" alt="ktm" className="h-12 w-12 opacity-60 group-hover:opacity-100 transition-opacity"></img>
+                                </div>
+                                <div className="text-center space-y-1">
+                                    <p className="text-slate-700 font-medium">KTM Photo</p>
+                                    <p className="text-slate-400 text-sm overflow-hidden text-ellipsis px-4 max-w-xs">
+                                        {ktmImg ? ktmImg.name : "Click to upload"}
+                                    </p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex justify-center mt-8">
+                        <div className="flex justify-center pt-4">
                             <button type="submit" disabled={loading}
-                                className="w-full md:w-1/2 bg-green-900 text-white py-3 rounded-lg font-semibold hover:bg-green-950 disabled:opacity-50 transition duration-200 shadow-md">
-                                {loading ? 'Uploading...' : 'Submit Verifikasi'}
+                                className="w-full md:w-2/3 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {loading ? 'Uploading...' : 'Submit Verification'}
                             </button>
                         </div>
                     </form>

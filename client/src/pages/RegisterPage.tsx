@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
+import { useToast } from "../contexts/ToastContext";
 
 const RegisterPage = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         name: '',
         nim: '',
-        email: ''
+        email: '',
+        password: ''
     });
-    const [profileImg, setProfileImg] = useState<File | null>(null);
-    const [ktmImg, setKtmImg] = useState<File | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -18,94 +18,128 @@ const RegisterPage = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<File | null>>) => {
-        if (e.target.files && e.target.files[0]) {
-            setter(e.target.files[0]);
-        }
-    };
+    const { success, error: showError } = useToast();
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-
-        if (!profileImg || !ktmImg) {
-            setError('Please upload both Profile and KTM photos.');
-            return;
-        }
-
-        setLoading(true);
-        const data = new FormData();
-        data.append('name', formData.name);
-        data.append('nim', formData.nim);
-        data.append('email', formData.email);
-        data.append('profile_image', profileImg);
-        data.append('ktm_image', ktmImg);
+        setLoading(true); // Set loading at the start of the async operation
 
         try {
-            await api.post('/register', data, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+            // Basic validation
+            if (formData.password.length < 6) {
+                const msg = "Password must be at least 6 characters";
+                setError(msg);
+                showError(msg);
+                setLoading(false); // Reset loading if validation fails
+                return;
+            }
+
+            await api.post("/register", {
+                name: formData.name,
+                nim: formData.nim,
+                email: formData.email,
+                password: formData.password
+            }, {
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
             });
-            alert('Registration successful! Please login.');
-            navigate('/login');
+            success("Registration successful! Please login.");
+            navigate("/login");
         } catch (err: any) {
             console.error(err);
-            setError(err.response?.data?.error || 'Registration failed');
+            const msg = err.response?.data?.error || "Registration failed";
+            setError(msg);
+            showError(msg);
         } finally {
-            setLoading(false);
+            setLoading(false); // Always reset loading state
         }
     };
 
-    return (
-        <div className="min-h-screen bg-gray-200 flex items-center justify-center p-4">
-            <div className="bg-white bg-opacity-75 p-8 rounded-lg shadow-md w-full max-w-lg">
-                <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Register</h2>
-
-                {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Nama</label>
-                        <input type="text" name="name" value={formData.name} onChange={handleInputChange} required
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">NIM</label>
-                        <input type="text" name="nim" value={formData.nim} onChange={handleInputChange} required
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Email</label>
-                        <input type="email" name="email" value={formData.email} onChange={handleInputChange} required
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Foto diri dengan KTM</label>
-                            <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setProfileImg)} required
-                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-950 hover:file:bg-blue-100" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Foto KTM</label>
-                            <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setKtmImg)} required
-                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-950 hover:file:bg-blue-100" />
-                        </div>
-                    </div>
-
-                    <button type="submit" disabled={loading}
-                        className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-900 hover:bg-green-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50">
-                        {loading ? 'Registering...' : 'Register'}
-                    </button>
-                </form>
-
-                <div className="mt-4 text-center">
-                    <p className="text-sm text-gray-600">
-                        Sudah ada akun? <Link to="/login" className="text-blue-600 hover:underline">Login disini</Link>
-                    </p>
-                </div>
-            </div>
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
+        <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+                Create Account
+            </h2>
+            <p className="text-slate-500 mt-2 text-sm">
+                Bergabung untuk mengikuti Pemilu HMS ITB 2025
+            </p>
         </div>
-    );
+
+        {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 text-sm mb-6">{error}</div>}
+
+        <form onSubmit={handleRegister} className="space-y-5">
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                <input 
+                    type="text" 
+                    name="name" 
+                    value={formData.name} 
+                    onChange={handleInputChange} 
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+                    placeholder="John Doe"
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">NIM</label>
+                <input 
+                    type="text" 
+                    name="nim" 
+                    value={formData.nim} 
+                    onChange={handleInputChange} 
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+                    placeholder="135xxxxx"
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <input 
+                    type="email" 
+                    name="email" 
+                    value={formData.email} 
+                    onChange={handleInputChange} 
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+                    placeholder="name@example.com"
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                <input 
+                    type="password" 
+                    name="password" 
+                    value={formData.password} 
+                    onChange={handleInputChange} 
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm"
+                    placeholder="••••••••"
+                />
+            </div>
+
+            <div className="pt-2">
+                <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {loading ? 'Creating Account...' : 'Sign Up'}
+                </button>
+            </div>
+        </form>
+
+        <div className="mt-8 text-center">
+            <p className="text-sm text-slate-500">
+                Already have an account?{' '}
+                <Link to="/login" className="text-emerald-600 font-semibold hover:text-emerald-700 transition-colors">
+                    Sign In
+                </Link>
+            </p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default RegisterPage;
