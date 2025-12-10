@@ -14,9 +14,9 @@ func getDialer() (*gomail.Dialer, error) {
 	user := os.Getenv("SMTP_EMAIL")
 	pass := os.Getenv("SMTP_PASSWORD")
 
-    if host == "" || portStr == "" || user == "" || pass == ""{
-        return nil, fmt.Errorf("SMTP configuration missing")
-    }
+	if host == "" || portStr == "" || user == "" || pass == "" {
+		return nil, fmt.Errorf("SMTP configuration missing")
+	}
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -28,7 +28,9 @@ func getDialer() (*gomail.Dialer, error) {
 
 func SendWelcomeEmail(toEmail, name string) error {
 	d, err := getDialer()
-    if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", d.Username)
@@ -46,7 +48,9 @@ func SendWelcomeEmail(toEmail, name string) error {
 
 func SendReminderEmail(toEmail, name, token string) error {
 	d, err := getDialer()
-    if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", d.Username)
@@ -65,7 +69,9 @@ func SendReminderEmail(toEmail, name, token string) error {
 
 func SendVoteConfirmation(toEmail, name, candidateName string) error {
 	d, err := getDialer()
-    if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", d.Username)
@@ -76,6 +82,26 @@ func SendVoteConfirmation(toEmail, name, candidateName string) error {
         <p>Your vote for <strong>%s</strong> has been successfully recorded.</p>
         <p>Each vote counts!</p>
     `, name, candidateName))
+
+	return d.DialAndSend(m)
+}
+
+func SendApprovalEmail(toEmail, name, token string) error {
+	d, err := getDialer()
+	if err != nil {
+		return err
+	}
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", d.Username)
+	m.SetHeader("To", toEmail)
+	m.SetHeader("Subject", "Account Approved - Your Voting Token")
+	m.SetBody("text/html", fmt.Sprintf(`
+        <h3>Congratulations, %s!</h3>
+        <p>Your account has been verified.</p>
+        <p><strong>Your Voting Token is: %s</strong></p>
+        <p>Please keep this token safe. You will need it to log in when the election starts.</p>
+    `, name, token))
 
 	return d.DialAndSend(m)
 }

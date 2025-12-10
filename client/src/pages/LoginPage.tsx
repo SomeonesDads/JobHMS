@@ -9,22 +9,25 @@ import CountdownTimer from "../components/CountdownTimer";
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [deadline, setDeadline] = useState<string | null>(null);
+  const [token, setToken] = useState("");
+  const [startTime, setStartTime] = useState<string | null>(null);
+  const [endTime, setEndTime] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { success, error } = useToast();
 
   useEffect(() => {
     const fetchSettings = async () => {
-        try {
-            const res = await api.get("/settings");
-            // If we have a startTime and it's in the future
-            if (res.data && res.data.startTime) {
-                setDeadline(res.data.startTime);
-            }
-        } catch (e) {
-            console.error("Failed to load settings", e);
+      try {
+        const res = await api.get("/settings");
+        // If we have a startTime and it's in the future
+        if (res.data) {
+          if (res.data.startTime) setStartTime(res.data.startTime);
+          if (res.data.endTime) setEndTime(res.data.endTime);
         }
+      } catch (e) {
+        console.error("Failed to load settings", e);
+      }
     };
     fetchSettings();
 
@@ -36,7 +39,7 @@ const LoginPage = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await api.post("/login", { email, password });
+      const response = await api.post("/login", { email, password, token });
       const user = response.data;
       localStorage.setItem("user", JSON.stringify(user));
 
@@ -66,7 +69,7 @@ const LoginPage = () => {
           <img src="/logo_hms.png" alt="logo HMS" className="h-16 w-16 drop-shadow-sm"></img>
           <img src="/logo192.png" alt="logo pemilu" className="h-16 w-16 drop-shadow-sm"></img>
         </div>
-        
+
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
             Pemilu HMS 2025
@@ -76,11 +79,11 @@ const LoginPage = () => {
           </p>
         </div>
 
-        {deadline && (
-            <div className="mb-6">
-                 {/* @ts-ignore - JS component */}
-                <CountdownTimer deadline={deadline} />
-            </div>
+        {(startTime || endTime) && (
+          <div className="mb-6">
+            {/* @ts-ignore - JS component */}
+            <CountdownTimer startDate={startTime} endDate={endTime} />
+          </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-5">

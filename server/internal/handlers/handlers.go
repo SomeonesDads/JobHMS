@@ -17,6 +17,7 @@ import (
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Token    string `json:"token"`
 }
 
 func Login(c *gin.Context) {
@@ -52,6 +53,14 @@ func Login(c *gin.Context) {
 	if user.VerificationStatus != "approved" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "User not verified yet"})
 		return
+	}
+
+	// Check Token for Voters
+	if user.Role != "admin" {
+		if req.Token != user.Token {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or missing voting token"})
+			return
+		}
 	}
 
 	// Check Election Timing
@@ -170,9 +179,9 @@ func Register(c *gin.Context) {
 		return
 	}
 
-    go func() {
-        email.SendWelcomeEmail(newUser.Email, newUser.Name)
-    }()
+	go func() {
+		email.SendWelcomeEmail(newUser.Email, newUser.Name)
+	}()
 
 	c.JSON(http.StatusCreated, newUser)
 }
@@ -306,7 +315,10 @@ func VerifyUser(c *gin.Context) {
 		user.VerificationStatus = "approved"
 		// Generate Token
 		user.Token = uuid.New().String()
-		// Simulated Email Sending
+		// Send Email
+		go func() {
+			email.SendApprovalEmail(user.Email, user.Name, user.Token)
+		}()
 		fmt.Printf("Sending Email to %s... Your Token is: %s\n", user.Email, user.Token)
 	} else if req.Action == "reject" {
 		user.VerificationStatus = "rejected"
@@ -376,20 +388,18 @@ func Vote(c *gin.Context) {
 		return
 	}
 
-
-
 	tx.Commit()
 
-    go func() {
-        candidateName := "Kotak Kosong"
-        if candidateIDStr != "0" {
-            var cand models.Candidate
-            if err := db.DB.First(&cand, vote.CandidateID).Error; err == nil {
-                candidateName = cand.Name
-            }
-        }
-        email.SendVoteConfirmation(user.Email, user.Name, candidateName)
-    }()
+	go func() {
+		candidateName := "Kotak Kosong"
+		if candidateIDStr != "0" {
+			var cand models.Candidate
+			if err := db.DB.First(&cand, vote.CandidateID).Error; err == nil {
+				candidateName = cand.Name
+			}
+		}
+		email.SendVoteConfirmation(user.Email, user.Name, candidateName)
+	}()
 
 	c.JSON(http.StatusOK, gin.H{"message": "Suara berhasil diberikan"})
 }
