@@ -65,12 +65,15 @@ func Login(c *gin.Context) {
 
 	// Check Election Timing
 	if user.Role != "admin" {
+		// Check Election Timing for Login (Allowed 24h before)
 		var startSetting models.Setting
 		if err := db.DB.Where("key = ?", "startTime").First(&startSetting).Error; err == nil && startSetting.Value != "" {
-			startTime, err := time.ParseInLocation("2006-01-02T15:04", startSetting.Value, time.Local) // Adjust format if strictly sent from datetime-local input
+			startTime, err := time.ParseInLocation("2006-01-02T15:04", startSetting.Value, time.Local)
 			if err == nil {
-				if time.Now().Before(startTime) {
-					c.JSON(http.StatusForbidden, gin.H{"error": "Pemilihan belum dimulai. Silakan tunggu countdown berakhir."})
+				// Allow login 24 hours before election starts for verification
+				allowedLoginTime := startTime.Add(-24 * time.Hour)
+				if time.Now().Before(allowedLoginTime) {
+					c.JSON(http.StatusForbidden, gin.H{"error": "Login hanya dibuka 24 jam sebelum pemilihan dimulai."})
 					return
 				}
 			}
@@ -349,6 +352,18 @@ func Vote(c *gin.Context) {
 	if user.HasVoted {
 		c.JSON(http.StatusConflict, gin.H{"error": "Pengguna sudah memilih"})
 		return
+	}
+
+	// Double-check election timing strictly for Voting action
+	var startSetting models.Setting
+	if err := db.DB.Where("key = ?", "startTime").First(&startSetting).Error; err == nil && startSetting.Value != "" {
+		startTime, err := time.ParseInLocation("2006-01-02T15:04", startSetting.Value, time.Local)
+		if err == nil {
+			if time.Now().Before(startTime) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Pemilihan belum dimulai."})
+				return
+			}
+		}
 	}
 
 	// Atomic transaction

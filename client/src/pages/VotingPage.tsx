@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import Steps from '../components/Steps';
 import { useToast } from '../contexts/ToastContext';
-import { Ticket, AlertCircle, Clock } from 'lucide-react';
+import { Ticket, AlertCircle, Clock, Calendar } from 'lucide-react';
 
 interface Candidate {
     ID: number;
@@ -24,28 +24,107 @@ const VotingPage = () => {
     const [selectedCandidate, setSelectedCandidate] = useState<number | null>(null);
     const [selectedCandidateName, setSelectedCandidateName] = useState<string>("");
     const [voting, setVoting] = useState(false);
-    const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+    
+    // Election Status State
+    const [electionStart, setElectionStart] = useState<Date | null>(null);
+    const [isElectionOpen, setIsElectionOpen] = useState(false);
+    const [loadingSettings, setLoadingSettings] = useState(true);
+
+    // Timer State
+    const [timeLeft, setTimeLeft] = useState(300); // 5 minutes default
+    
     const navigate = useNavigate();
     const { success, error: showError } = useToast();
 
-
+    // 1. Initial Data Fetch & User Check
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (!storedUser) {
             navigate('/login');
-        } else {
-            setUser(JSON.parse(storedUser));
-            fetchCandidates();
+            return;
         }
+        setUser(JSON.parse(storedUser));
+        fetchInitialData();
     }, [navigate]);
 
-    const fetchCandidates = async () => {
+    const fetchInitialData = async () => {
         try {
-            const response = await api.get('/candidates');
-            setCandidates(response.data);
+            // Fetch Candidates
+            const candRes = await api.get('/candidates');
+            setCandidates(candRes.data);
+
+            // Fetch Settings for Timing
+            const setRes = await api.get('/settings');
+            const settings = setRes.data;
+            if (settings.startTime) {
+                const start = new Date(settings.startTime);
+                setElectionStart(start);
+                checkElectionStatus(start);
+            } else {
+                // If no start time set, assume open
+                setIsElectionOpen(true);
+            }
         } catch (error) {
-            console.error('Error fetching candidates:', error);
+            console.error('Error fetching data:', error);
+            // If error fetching settings, default to open to avoid blocking if not configured
+            setIsElectionOpen(true);
+        } finally {
+            setLoadingSettings(false);
         }
+    };
+
+    const checkElectionStatus = (start: Date) => {
+        const now = new Date();
+        if (now >= start) {
+            setIsElectionOpen(true);
+        } else {
+            setIsElectionOpen(false);
+        }
+    };
+
+    // 2. Persistent Timer Logic
+    useEffect(() => {
+        if (!isElectionOpen || !user || user.HasVoted) return;
+
+        const VOTING_DURATION_SEC = 5 * 60; // 5 minutes
+        const STORAGE_KEY = `vote_entry_time_${user.ID}`;
+
+        // Initialize or Retrieve Entry Time
+        let entryTime = localStorage.getItem(STORAGE_KEY);
+        if (!entryTime) {
+            entryTime = Date.now().toString();
+            localStorage.setItem(STORAGE_KEY, entryTime);
+        }
+
+        const calculateTimeLeft = () => {
+            const now = Date.now();
+            const elapsed = Math.floor((now - parseInt(entryTime!)) / 1000);
+            const remaining = VOTING_DURATION_SEC - elapsed;
+            return remaining > 0 ? remaining : 0;
+        };
+
+        // Set initial calculated time
+        setTimeLeft(calculateTimeLeft());
+
+        const timer = setInterval(() => {
+            const remaining = calculateTimeLeft();
+            setTimeLeft(remaining);
+
+            if (remaining <= 0) {
+                clearInterval(timer);
+                handleAutoAbstain();
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [isElectionOpen, user]);
+
+    const handleAutoAbstain = () => {
+        // Prevent double submission if already voting
+        if (voting) return;
+        
+        console.log("Timer expired. Auto-voting for Kotak Kosong.");
+        handleSubmitVote(0, true); // 0 = Kotak Kosong
     };
 
     const handleVoteClick = (candidateId: number, candidateName: string) => {
@@ -53,7 +132,7 @@ const VotingPage = () => {
         setSelectedCandidateName(candidateName);
     };
 
-    const handleSubmitVote = async (candidateId: number) => {
+    const handleSubmitVote = async (candidateId: number, isAuto: boolean = false) => {
         if (!user) return;
         setVoting(true);
         const data = new FormData();
@@ -62,32 +141,26 @@ const VotingPage = () => {
 
         try {
             await api.post('/vote', data);
+            
+            // Clear timer storage
+            localStorage.removeItem(`vote_entry_time_${user.ID}`);
             localStorage.removeItem('user');
-            success(candidateId === 0 && timeLeft === 0 ? 'Waktu habis! Suara otomatis masuk ke Kotak Kosong.' : 'Your vote has been cast successfully!');
-            navigate('/login', { state: { message: 'Suara berhasil dikirim! Terima kasih telah berpartisipasi.' } });
+            
+            const msg = isAuto 
+                ? 'Waktu habis! Anda otomatis memilih Kotak Kosong.' 
+                : 'Suara Anda berhasil dikirim!';
+            
+            if (isAuto) showError(msg);
+            else success(msg);
+
+            navigate('/login', { state: { message: msg } });
 
         } catch (error: any) {
             console.error('Error voting:', error);
-            showError(error.response?.data?.error || 'Failed to submit vote.');
+            showError(error.response?.data?.error || 'Gagal mengirim suara.');
             setVoting(false);
         }
     };
-
-    // Auto-vote Timer Effect
-    useEffect(() => {
-        if (!user || user.HasVoted) return;
-
-        if (timeLeft === 0) {
-            handleSubmitVote(0); // Auto vote Kotak Kosong
-            return;
-        }
-
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => prev - 1);
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [timeLeft, user]);
 
     const handleConfirmVote = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -95,20 +168,73 @@ const VotingPage = () => {
         await handleSubmitVote(selectedCandidate);
     };
 
+    // Format Time Display
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+
+    // Render Loading
+    if (loadingSettings) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+            </div>
+        );
+    }
+
+    // Render Waiting for Election
+    if (!isElectionOpen && electionStart) {
+        return (
+            <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans">
+                 <div className="max-w-4xl mx-auto">
+                    <Steps currentStep={2} />
+                    
+                    <div className="mt-12 bg-white p-12 rounded-[2.5rem] shadow-xl text-center border border-slate-100 max-w-2xl mx-auto">
+                        <div className="w-24 h-24 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                            <Calendar size={48} />
+                        </div>
+                        <h1 className="text-3xl font-bold text-slate-800 mb-4">Election Has Not Started</h1>
+                        <p className="text-slate-500 text-lg mb-8">
+                            Please wait until the election officially begins on:
+                        </p>
+                        <div className="bg-slate-50 py-4 px-8 rounded-2xl inline-block border border-slate-200">
+                             <span className="text-2xl font-mono font-bold text-slate-700">
+                                {electionStart.toLocaleString('id-ID', { 
+                                    dateStyle: 'full', 
+                                    timeStyle: 'short' 
+                                })}
+                            </span>
+                        </div>
+                        <p className="mt-8 text-sm text-slate-400">
+                            You can refresh this page when the time comes.
+                        </p>
+                        <button 
+                            onClick={() => window.location.reload()}
+                            className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-full font-bold hover:bg-emerald-700 transition"
+                        >
+                            Refresh Page
+                        </button>
+                    </div>
+                 </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans">
             <div className="max-w-7xl mx-auto">
                 <Steps currentStep={2} />
 
                 {/* Timer Display */}
-                {!user?.HasVoted && (
+                {!user?.HasVoted && timeLeft > 0 && (
                     <div className="fixed top-4 right-4 z-50 animate-bounce-in">
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold shadow-lg border-2 ${timeLeft < 60 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-white text-slate-700 border-slate-200'
-                            }`}>
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold shadow-lg border-2 ${
+                            timeLeft < 60 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-white text-slate-700 border-slate-200'
+                        }`}>
                             <Clock size={18} />
-                            <span>
-                                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
-                            </span>
+                            <span>{formatTime(timeLeft)}</span>
                         </div>
                     </div>
                 )}
