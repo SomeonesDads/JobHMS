@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 	"voting-backend/internal/db"
@@ -183,7 +184,11 @@ func Register(c *gin.Context) {
 	}
 
 	go func() {
-		email.SendWelcomeEmail(newUser.Email, newUser.Name)
+		if err := email.SendWelcomeEmail(newUser.Email, newUser.Name); err != nil {
+			log.Printf("Failed to send welcome email to %s: %v", newUser.Email, err)
+		} else {
+			log.Printf("Welcome email sent to %s", newUser.Email)
+		}
 	}()
 
 	c.JSON(http.StatusCreated, newUser)
@@ -320,18 +325,26 @@ func VerifyUser(c *gin.Context) {
 		user.Token = uuid.New().String()
 		// Send Email
 		go func() {
-			email.SendApprovalEmail(user.Email, user.Name, user.Token)
+			if err := email.SendApprovalEmail(user.Email, user.Name, user.Token); err != nil {
+				log.Printf("Failed to send approval email to %s: %v", user.Email, err)
+			} else {
+				log.Printf("Approval email sent to %s", user.Email)
+			}
 		}()
 		fmt.Printf("Sending Email to %s... Your Token is: %s\n", user.Email, user.Token)
+		
+		db.DB.Save(&user)
+		c.JSON(http.StatusOK, gin.H{"message": "User approved", "user": user})
 	} else if req.Action == "reject" {
-		user.VerificationStatus = "rejected"
+		if err := db.DB.Delete(&user).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "User rejected and removed"})
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid action"})
 		return
 	}
-
-	db.DB.Save(&user)
-	c.JSON(http.StatusOK, gin.H{"message": "User verification status updated", "user": user})
 }
 
 func Vote(c *gin.Context) {
@@ -413,7 +426,11 @@ func Vote(c *gin.Context) {
 				candidateName = cand.Name
 			}
 		}
-		email.SendVoteConfirmation(user.Email, user.Name, candidateName)
+		if err := email.SendVoteConfirmation(user.Email, user.Name, candidateName); err != nil {
+			log.Printf("Failed to send vote confirmation to %s: %v", user.Email, err)
+		} else {
+			log.Printf("Vote confirmation email sent to %s", user.Email)
+		}
 	}()
 
 	c.JSON(http.StatusOK, gin.H{"message": "Suara berhasil diberikan"})
