@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 COPY --from=builder /app/main .
 
 # Expose port (Hugging Face Spaces defaults to 7860)
-EXPOSE 7860
+EXPOSE 8080
 
 # Run
 CMD ["./main"]

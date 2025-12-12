@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DB_HOST=host.docker.internal
+      - DB_USER=postgres
+      - DB_PASSWORD=12345
+      - DB_NAME=voting_app
+      - DB_PORT=5432
+      # Pass through other necessary env vars
+      - IMGBB_API_KEY=9d4a87ab41a9e2436b67e0f6ca978cad
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_EMAIL=pemiluhmsitb2025@gmail.com
+      - SMTP_PASSWORD=kpi rxyk veot yjsr
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://localhost:8080
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
