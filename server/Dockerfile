@@ -1,5 +1,5 @@
 # Build Stage
-FROM golang:1.21-alpine AS builder
+FROM golang:alpine AS builder
 
 WORKDIR /app
 
@@ -27,8 +27,8 @@ RUN apk --no-cache add ca-certificates
 # Copy binary from builder
 COPY --from=builder /app/main .
 
-# Expose port (Render sets PORT env, but 8080 is good default)
-EXPOSE 8080
+# Expose port (Hugging Face Spaces defaults to 7860)
+EXPOSE 7860
 
 # Run
 CMD ["./main"]

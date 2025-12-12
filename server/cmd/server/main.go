@@ -125,5 +125,9 @@ func main() {
 	// Seed admin account only
 	handlers.SeedAdmin() // Seed Admin Account
 
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	r.Run(":" + port)
 }
