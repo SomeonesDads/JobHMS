@@ -106,14 +106,14 @@ const AdminPage = () => {
       return;
     }
     fetchData();
-    fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [user, navigate, activeTab]);
 
   const fetchData = () => {
     if (activeTab === "mahasiswa") fetchVerifications();
-    // if (activeTab === "all_users") fetchAllUsers(); // Disabled auto-polling for users to prevent search reset
+    if (activeTab === "mahasiswa") fetchVerifications();
+    if (activeTab === "all_users") fetchAllUsers();
     if (activeTab === "verifikasi_suara") fetchPendingVotes();
     if (activeTab === "kandidat") fetchCandidates();
     if (activeTab === "recap") fetchResults();
