@@ -15,6 +15,8 @@ interface User {
   Role: string;
   ProfileImage: string;
   KTMImage: string;
+  HasVoted?: boolean;
+  VerificationStatus?: string;
 }
 
 interface Verification {
@@ -59,15 +61,22 @@ const AdminPage = () => {
     const saved = localStorage.getItem("user");
     return saved ? JSON.parse(saved) : null;
   });
-  const [activeTab, setActiveTab] = useState("mahasiswa");
+  const [activeTab, setActiveTab] = useState("all_users");
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
 
   // Data States
+  // Data States
   const [verifications, setVerifications] = useState<Verification[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]); // Data for "all_users"
   const [pendingVotes, setPendingVotes] = useState<VoteRequest[]>([]);
   const [results, setResults] = useState<any[]>([]); // Using any to handle inconsistent casing from API if valid
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterVerification, setFilterVerification] = useState("all");
+  const [filterHasVoted, setFilterHasVoted] = useState("all");
 
   // Modal State
   const [selectedUser, setSelectedUser] = useState<Verification | null>(null);
@@ -97,12 +106,14 @@ const AdminPage = () => {
       return;
     }
     fetchData();
+    fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [user, navigate, activeTab]);
 
   const fetchData = () => {
     if (activeTab === "mahasiswa") fetchVerifications();
+    // if (activeTab === "all_users") fetchAllUsers(); // Disabled auto-polling for users to prevent search reset
     if (activeTab === "verifikasi_suara") fetchPendingVotes();
     if (activeTab === "kandidat") fetchCandidates();
     if (activeTab === "recap") fetchResults();
@@ -132,6 +143,28 @@ const AdminPage = () => {
       setCandidates(res.data || []);
     } catch (err) { console.error(err); }
   };
+
+  const fetchAllUsers = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append("q", searchQuery);
+      if (filterVerification !== "all") params.append("verificationStatus", filterVerification);
+      if (filterHasVoted !== "all") params.append("hasVoted", filterHasVoted);
+
+      const res = await api.get(`/admin/users?${params.toString()}`);
+      setAllUsers(res.data || []);
+    } catch (err) { console.error(err); }
+  };
+
+  // Debounced search effect
+  useEffect(() => {
+    if (activeTab === "all_users") {
+      const timer = setTimeout(() => {
+        fetchAllUsers();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [searchQuery, filterVerification, filterHasVoted, activeTab]);
 
   const handleVerifyUser = async (userId: number, action: string) => {
     try {
@@ -219,7 +252,9 @@ const AdminPage = () => {
               activeTab === "mahasiswa" ? "User Registrations" :
                 activeTab === "verifikasi_suara" ? "Vote Verification" :
                   activeTab === "kandidat" ? "Candidate Management" :
-                    "Election Settings"}
+                    activeTab === "kandidat" ? "Candidate Management" :
+                      activeTab === "all_users" ? "All Users" :
+                        "Election Settings"}
           </h1>
           <p className="text-slate-500 text-sm">
             Manage your election system efficiently.
@@ -227,7 +262,7 @@ const AdminPage = () => {
         </div>
         <div className="flex gap-3">
           <div className="bg-white border border-slate-200 rounded-xl p-1 flex shadow-sm">
-            {["mahasiswa", "verifikasi_suara", "kandidat", "recap", "settings"].map(tab => (
+            {["mahasiswa", "all_users", "verifikasi_suara", "kandidat", "recap", "settings"].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -236,7 +271,8 @@ const AdminPage = () => {
                   : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                   }`}
               >
-                {tab === "mahasiswa" && "Users"}
+                {tab === "mahasiswa" && "Registrations"}
+                {tab === "all_users" && "User List"}
                 {tab === "verifikasi_suara" && "Votes"}
                 {tab === "kandidat" && "Candidates"}
                 {tab === "recap" && "Results"}
@@ -357,6 +393,91 @@ const AdminPage = () => {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* --- ALL USERS TAB --- */}
+      {activeTab === "all_users" && (
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h2 className="font-bold text-xl mb-6 text-slate-900">Registered Users</h2>
+
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <input
+                type="text"
+                placeholder="Search by Name, NIM, or Email..."
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <select
+                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 outline-none"
+                value={filterVerification}
+                onChange={(e) => setFilterVerification(e.target.value)}
+              >
+                <option value="all">Verif: All</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <select
+                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 outline-none"
+                value={filterHasVoted}
+                onChange={(e) => setFilterHasVoted(e.target.value)}
+              >
+                <option value="all">Voted: All</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="p-4 rounded-tl-xl">User</th>
+                    <th className="p-4">NIM</th>
+                    <th className="p-4">Email</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 rounded-tr-xl text-center">Voted?</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {allUsers.map((u) => (
+                    <tr key={u.ID} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
+                          {u.ProfileImage && <img src={getImageSrc(u.ProfileImage)} className="w-full h-full object-cover" />}
+                        </div>
+                        <span className="font-medium text-slate-900">{u.Name}</span>
+                      </td>
+                      <td className="p-4 font-mono text-sm text-slate-600">{u.NIM}</td>
+                      <td className="p-4 text-sm text-slate-600">{u.Email}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wide border ${u.VerificationStatus === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                          u.VerificationStatus === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                            'bg-red-50 text-red-600 border-red-100'
+                          }`}>
+                          {u.VerificationStatus}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        {u.HasVoted ?
+                          <CheckCircle2 size={20} className="text-emerald-500 mx-auto" /> :
+                          <span className="text-slate-300 text-xs font-medium">No</span>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                  {allUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-400">No users found match your criteria.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

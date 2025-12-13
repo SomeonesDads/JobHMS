@@ -83,7 +83,7 @@ func Login(c *gin.Context) {
 		}
 		var endSetting models.Setting
 		if err := db.DB.Where("key = ?", "endTime").First(&endSetting).Error; err == nil && endSetting.Value != "" {
-			endTime, err := time.ParseInLocation("2006-01-02T15:04", endSetting.Value, wibLocation) 
+			endTime, err := time.ParseInLocation("2006-01-02T15:04", endSetting.Value, wibLocation)
 			if err == nil {
 				if time.Now().In(wibLocation).After(endTime) {
 					c.JSON(http.StatusForbidden, gin.H{"error": "Pemilihan sudah berakhir."})
@@ -305,6 +305,39 @@ func SearchUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
+func GetAllUsers(c *gin.Context) {
+	query := c.Query("q")
+	verificationStatus := c.Query("verificationStatus")
+	hasVoted := c.Query("hasVoted")
+
+	var users []models.User
+	dbQuery := db.DB.Where("role = ?", "voter")
+
+	if query != "" {
+		searchPattern := "%" + query + "%"
+		dbQuery = dbQuery.Where("(name ILIKE ? OR nim ILIKE ? OR email ILIKE ?)", searchPattern, searchPattern, searchPattern)
+	}
+
+	if verificationStatus != "" && verificationStatus != "all" {
+		dbQuery = dbQuery.Where("verification_status = ?", verificationStatus)
+	}
+
+	if hasVoted != "" && hasVoted != "all" {
+		if hasVoted == "yes" {
+			dbQuery = dbQuery.Where("has_voted = ?", true)
+		} else if hasVoted == "no" {
+			dbQuery = dbQuery.Where("(has_voted = ? OR has_voted IS NULL)", false)
+		}
+	}
+
+	if err := dbQuery.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
+}
+
 func VerifyUser(c *gin.Context) {
 	var req struct {
 		UserID uint   `json:"userId"`
@@ -334,7 +367,7 @@ func VerifyUser(c *gin.Context) {
 			}
 		}()
 		fmt.Printf("Sending Email to %s... Your Token is: %s\n", user.Email, user.Token)
-		
+
 		db.DB.Save(&user)
 		c.JSON(http.StatusOK, gin.H{"message": "User approved", "user": user})
 	} else if req.Action == "reject" {

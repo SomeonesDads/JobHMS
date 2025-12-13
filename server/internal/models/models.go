@@ -12,8 +12,8 @@ type User struct {
 	NIM                string  `gorm:"uniqueIndex"`
 	Email              string  `gorm:"uniqueIndex"`
 	Role               string  `gorm:"default:'voter'"` // 'admin' or 'voter'
-	HasVoted           bool    `json:"hasVoted" gorm:"default:false"`
-	ReminderSent       bool    `json:"reminderSent" gorm:"default:false"`
+	HasVoted           bool    `gorm:"default:false"`
+	ReminderSent       bool    `gorm:"default:false"`
 	ProfileImage       string
 	KTMImage           string
 	VerificationStatus string `gorm:"default:'none'"` // 'none', 'pending', 'approved', 'rejected'

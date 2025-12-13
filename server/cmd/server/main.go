@@ -15,14 +15,14 @@ import (
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-        if err := godotenv.Load("../../.env"); err != nil {
-		    log.Println("No .env file found, relying on environment variables")
-        } else {
-            log.Println("Loaded .env from used default root")
-        }
+		if err := godotenv.Load("../../.env"); err != nil {
+			log.Println("No .env file found, relying on environment variables")
+		} else {
+			log.Println("Loaded .env from used default root")
+		}
 	} else {
-         log.Println("Loaded .env from current directory")
-    }
+		log.Println("Loaded .env from current directory")
+	}
 
 	// Connect to database
 	db.Connect()
@@ -88,7 +88,7 @@ func main() {
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Max-Age", "43200") 
+		c.Writer.Header().Set("Access-Control-Max-Age", "43200")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -110,6 +110,7 @@ func main() {
 
 	// Admin routes
 	r.GET("/admin/users/pending", handlers.GetPendingUsers)
+	r.GET("/admin/users", handlers.GetAllUsers)        // Added GetAllUsers
 	r.GET("/admin/users/search", handlers.SearchUsers) // Search users
 	r.POST("/admin/verify", handlers.VerifyUser)
 	r.POST("/admin/candidates", handlers.CreateCandidate)

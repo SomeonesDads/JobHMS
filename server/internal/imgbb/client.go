@@ -7,7 +7,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 )
 
 const (
@@ -25,48 +24,48 @@ type ImgBBData struct {
 }
 
 func GetAPIKey() string {
-    return os.Getenv("IMGBB_API_KEY")
+	return "d7e3e0a086d605ff8c68a0555dbe4927"
 }
 
 func UploadImage(fileHeader *multipart.FileHeader) (string, error) {
-    apiKey := GetAPIKey()
-    if apiKey == "" {
-        return "", fmt.Errorf("IMGBB_API_KEY not set")
-    }
+	apiKey := GetAPIKey()
+	if apiKey == "" {
+		return "", fmt.Errorf("IMGBB_API_KEY not set")
+	}
 
-    file, err := fileHeader.Open()
-    if err != nil {
-        return "", err
-    }
-    defer file.Close()
+	file, err := fileHeader.Open()
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
 
-    body := &bytes.Buffer{}
-    writer := multipart.NewWriter(body)
-    
-    // key param
-    writer.WriteField("key", apiKey)
-    
-    part, err := writer.CreateFormFile("image", fileHeader.Filename)
-    if err != nil {
-        return "", err
-    }
-    io.Copy(part, file)
-    writer.Close()
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
 
-    resp, err := http.Post(API_URL, writer.FormDataContentType(), body)
-    if err != nil {
-        return "", err
-    }
-    defer resp.Body.Close()
+	// key param
+	writer.WriteField("key", apiKey)
 
-    var imgbbResp ImgBBResponse
-    if err := json.NewDecoder(resp.Body).Decode(&imgbbResp); err != nil {
-        return "", err
-    }
+	part, err := writer.CreateFormFile("image", fileHeader.Filename)
+	if err != nil {
+		return "", err
+	}
+	io.Copy(part, file)
+	writer.Close()
 
-    if !imgbbResp.Success {
-        return "", fmt.Errorf("imgbb upload failed")
-    }
+	resp, err := http.Post(API_URL, writer.FormDataContentType(), body)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-    return imgbbResp.Data.URL, nil
+	var imgbbResp ImgBBResponse
+	if err := json.NewDecoder(resp.Body).Decode(&imgbbResp); err != nil {
+		return "", err
+	}
+
+	if !imgbbResp.Success {
+		return "", fmt.Errorf("imgbb upload failed")
+	}
+
+	return imgbbResp.Data.URL, nil
 }
