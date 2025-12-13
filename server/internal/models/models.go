@@ -35,7 +35,7 @@ type Vote struct {
 	Timestamp   time.Time
 	KTMImage    string
 	SelfImage   string
-	IsApproved   bool   `gorm:"default:false"`
+	Status      string `gorm:"default:'pending'"` // 'pending', 'approved', 'rejected'
 }
 
 type Setting struct {

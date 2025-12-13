@@ -396,7 +396,7 @@ func Vote(c *gin.Context) {
 		Timestamp:   time.Now(),
 		KTMImage:    user.KTMImage,     // Use User's existing images
 		SelfImage:   user.ProfileImage, // Use User's existing images
-		IsApproved:  false,
+		Status:      "pending",
 	}
 
 	// Handle Kotak Kosong (ID=0)
@@ -455,7 +455,7 @@ func GetPendingVotes(c *gin.Context) {
 		Select("votes.id as id, users.name as userName, users.nim as userNim, users.email as userEmail, votes.ktm_image as ktmImage, votes.self_image as selfImage, COALESCE(candidates.name, 'Kotak Kosong') as candidateName").
 		Joins("left join users on users.id = votes.user_id").
 		Joins("left join candidates on candidates.id = votes.candidate_id").
-		Where("votes.is_approved = ?", false).
+		Where("votes.status = ?", "pending").
 		Scan(&votes)
 
 	c.JSON(http.StatusOK, votes)
@@ -477,13 +477,13 @@ func SearchVotes(c *gin.Context) {
 		KTMImage      string `json:"ktmImage"`
 		SelfImage     string `json:"selfImage"`
 		CandidateName string `json:"candidateName"`
-		IsApproved    bool   `json:"isApproved"`
+		Status        string `json:"status"`
 	}
 	votes := []VoteResult{}
 
 	searchPattern := "%" + query + "%"
 	db.DB.Table("votes").
-		Select("votes.id as id, votes.user_id as userId, users.name as userName, users.nim as userNim, users.email as userEmail, votes.ktm_image as ktmImage, votes.self_image as selfImage, COALESCE(candidates.name, 'Kotak Kosong') as candidateName, votes.is_approved as isApproved").
+		Select("votes.id as id, votes.user_id as userId, users.name as userName, users.nim as userNim, users.email as userEmail, votes.ktm_image as ktmImage, votes.self_image as selfImage, COALESCE(candidates.name, 'Kotak Kosong') as candidateName, votes.status as status").
 		Joins("left join users on users.id = votes.user_id").
 		Joins("left join candidates on candidates.id = votes.candidate_id").
 		Where("users.nim ILIKE ? OR users.name ILIKE ?", searchPattern, searchPattern).
@@ -509,18 +509,12 @@ func ApproveVote(c *gin.Context) {
 	}
 
 	if req.Action == "approve" {
-		vote.IsApproved = true
+		vote.Status = "approved"
 		db.DB.Save(&vote)
 	} else if req.Action == "reject" {
-		// If rejected, allow user to vote again? Requirement vague.
-		// "For each votes, ... admin ... can approve".
-		// If rejected, probably should reset has_voted?
-		// Let's assume rejection means invalid vote. Reset user's hasVoted.
-		vote.IsApproved = false // keep false
-		// But maybe delete the vote? Or keep as Rejected history?
-		// Simplest: Delete vote, reset user.
-		db.DB.Model(&models.User{}).Where("id = ?", vote.UserID).Update("has_voted", false)
-		db.DB.Delete(&vote)
+		// Just mark as rejected. User CANNOT vote again.
+		vote.Status = "rejected"
+		db.DB.Save(&vote)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Vote processed"})
@@ -538,7 +532,7 @@ func GetResults(c *gin.Context) {
 	// Get candidate votes
 	err := db.DB.Table("candidates").
 		Select("candidates.id as candidate_id, candidates.name, candidates.image_url, COALESCE(count(votes.id), 0) as count").
-		Joins("left join votes on votes.candidate_id = candidates.id AND votes.is_approved = ?", true).
+		Joins("left join votes on votes.candidate_id = candidates.id AND votes.status = ?", "approved").
 		Joins("left join users on users.id = votes.user_id AND users.verification_status = ?", "approved").
 		Group("candidates.id, candidates.name, candidates.image_url").
 		Scan(&results).Error
@@ -552,7 +546,7 @@ func GetResults(c *gin.Context) {
 	var kotakKosongCount int64
 	db.DB.Table("votes").
 		Joins("left join users on users.id = votes.user_id").
-		Where("votes.candidate_id = ? AND votes.is_approved = ? AND users.verification_status = ?", 0, true, "approved").
+		Where("votes.candidate_id = ? AND votes.status = ? AND users.verification_status = ?", 0, "approved", "approved").
 		Count(&kotakKosongCount)
 
 	// Add Kotak Kosong to results
@@ -564,6 +558,22 @@ func GetResults(c *gin.Context) {
 			Count:       kotakKosongCount,
 		}
 		results = append(results, kotakKosong)
+	}
+
+	// Count Rejected Votes (Suara Hangus)
+	var rejectedCount int64
+	db.DB.Table("votes").
+		Where("status = ?", "rejected").
+		Count(&rejectedCount)
+
+	if rejectedCount > 0 {
+		hangus := Result{
+			CandidateID: 999999, // Arbitrary ID for unique key
+			Name:        "Suara Hangus",
+			ImageURL:    "", // No image or specific image for rejected
+			Count:       rejectedCount,
+		}
+		results = append(results, hangus)
 	}
 
 	c.JSON(http.StatusOK, results)
