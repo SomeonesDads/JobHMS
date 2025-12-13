@@ -24,7 +24,7 @@ const VotingPage = () => {
     const [selectedCandidate, setSelectedCandidate] = useState<number | null>(null);
     const [selectedCandidateName, setSelectedCandidateName] = useState<string>("");
     const [voting, setVoting] = useState(false);
-    
+
     // Election Status State
     const [electionStart, setElectionStart] = useState<Date | null>(null);
     const [isElectionOpen, setIsElectionOpen] = useState(false);
@@ -32,7 +32,7 @@ const VotingPage = () => {
 
     // Timer State
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes default
-    
+
     const navigate = useNavigate();
     const { success, error: showError } = useToast();
 
@@ -122,7 +122,7 @@ const VotingPage = () => {
     const handleAutoAbstain = () => {
         // Prevent double submission if already voting
         if (voting) return;
-        
+
         console.log("Timer expired. Auto-voting for Kotak Kosong.");
         handleSubmitVote(0, true); // 0 = Kotak Kosong
     };
@@ -141,15 +141,15 @@ const VotingPage = () => {
 
         try {
             await api.post('/vote', data);
-            
+
             // Clear timer storage
             localStorage.removeItem(`vote_entry_time_${user.ID}`);
             localStorage.removeItem('user');
-            
-            const msg = isAuto 
-                ? 'Waktu habis! Anda otomatis memilih Kotak Kosong.' 
+
+            const msg = isAuto
+                ? 'Waktu habis! Anda otomatis memilih Kotak Kosong.'
                 : 'Suara Anda berhasil dikirim!';
-            
+
             if (isAuto) showError(msg);
             else success(msg);
 
@@ -188,9 +188,9 @@ const VotingPage = () => {
     if (!isElectionOpen && electionStart) {
         return (
             <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans">
-                 <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl mx-auto">
                     <Steps currentStep={2} />
-                    
+
                     <div className="mt-12 bg-white p-12 rounded-[2.5rem] shadow-xl text-center border border-slate-100 max-w-2xl mx-auto">
                         <div className="w-24 h-24 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
                             <Calendar size={48} />
@@ -200,24 +200,24 @@ const VotingPage = () => {
                             Please wait until the election officially begins on:
                         </p>
                         <div className="bg-slate-50 py-4 px-8 rounded-2xl inline-block border border-slate-200">
-                             <span className="text-2xl font-mono font-bold text-slate-700">
-                                {electionStart.toLocaleString('id-ID', { 
-                                    dateStyle: 'full', 
-                                    timeStyle: 'short' 
+                            <span className="text-2xl font-mono font-bold text-slate-700">
+                                {electionStart.toLocaleString('id-ID', {
+                                    dateStyle: 'full',
+                                    timeStyle: 'short'
                                 })}
                             </span>
                         </div>
                         <p className="mt-8 text-sm text-slate-400">
                             You can refresh this page when the time comes.
                         </p>
-                        <button 
+                        <button
                             onClick={() => window.location.reload()}
                             className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-full font-bold hover:bg-emerald-700 transition"
                         >
                             Refresh Page
                         </button>
                     </div>
-                 </div>
+                </div>
             </div>
         );
     }
@@ -230,9 +230,8 @@ const VotingPage = () => {
                 {/* Timer Display */}
                 {!user?.HasVoted && timeLeft > 0 && (
                     <div className="fixed top-4 right-4 z-50 animate-bounce-in">
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold shadow-lg border-2 ${
-                            timeLeft < 60 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-white text-slate-700 border-slate-200'
-                        }`}>
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold shadow-lg border-2 ${timeLeft < 60 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-white text-slate-700 border-slate-200'
+                            }`}>
                             <Clock size={18} />
                             <span>{formatTime(timeLeft)}</span>
                         </div>
@@ -311,7 +310,7 @@ const VotingPage = () => {
                             <div className="p-8 flex-1 flex flex-col items-center z-10">
                                 <div className="w-48 h-48 rounded-full p-1.5 bg-slate-200 shadow-inner mb-6 flex items-center justify-center group-hover:bg-slate-300 transition-colors">
                                     <div className="w-full h-full rounded-full border-4 border-white bg-slate-100 flex items-center justify-center overflow-hidden">
-                                        <div className="w-24 h-24 border-4 border-dashed border-slate-300 rounded-lg"></div>
+                                        <img className="w-24 h-24 rounded-lg" src="./kotakkosong.png"></img>
                                     </div>
                                 </div>
 
