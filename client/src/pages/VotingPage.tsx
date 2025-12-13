@@ -270,7 +270,11 @@ const VotingPage = () => {
                                     <div className="w-48 h-48 rounded-full p-1.5 bg-gradient-to-tr from-emerald-400 to-emerald-600 shadow-lg mb-6 group-hover:scale-105 transition-transform duration-500">
                                         <div className="w-full h-full rounded-full border-4 border-white overflow-hidden bg-slate-200 relative">
                                             <img
-                                                src={`http://localhost:8080${candidate.ImageURL}`}
+                                                src={
+                                                    candidate.ImageURL?.startsWith('http')
+                                                        ? candidate.ImageURL
+                                                        : `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}${candidate.ImageURL}`
+                                                }
                                                 alt={candidate.Name}
                                                 className="w-full h-full object-cover"
                                             />
