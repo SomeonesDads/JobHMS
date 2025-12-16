@@ -507,10 +507,7 @@ const AdminPage = () => {
                     <h4 className="text-slate-400 text-xs uppercase tracking-wider mb-1 font-bold">Voter</h4>
                     <p className="font-bold text-lg text-slate-900">{v.userName}</p>
                   </div>
-                  <div className="flex-1 border-l border-slate-100 pl-8">
-                    <h4 className="text-slate-400 text-xs uppercase tracking-wider mb-1 font-bold">Voted For</h4>
-                    <p className="font-bold text-lg text-emerald-600">{v.candidateName}</p>
-                  </div>
+                  {/* Voted For removed as requested */}
 
                   <div className="flex gap-4">
                     <div className="text-center">
