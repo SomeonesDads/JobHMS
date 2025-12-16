@@ -126,7 +126,6 @@ func main() {
 	r.POST("/admin/votes/verify", handlers.ApproveVote) // Approve/Reject Vote
 
 	// Settings
-	r.GET("/settings", handlers.GetSettings)         // Public for countdown
 	r.POST("/admin/settings", handlers.SaveSettings) // Admin only
 
 	// Legacy or Specific upload route if needed, currently Register handles it.
