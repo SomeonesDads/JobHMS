@@ -437,10 +437,12 @@ func Vote(c *gin.Context) {
 		// Strict: If they never entered via EnterVoting, reject or block. 
 		// Decision: Reject as "Tidak Sah" because flow was skipped.
 		vote.Status = "rejected"
+		vote.RejectionReason = "Bypassed Voting Entry (Suspicious)"
 	} else {
 		// Calculate time difference
 		if time.Since(*user.VoteEntryTime) > 5*time.Minute {
 			vote.Status = "rejected"
+			vote.RejectionReason = "Time Limit Exceeded (> 5 minutes)"
 		} else {
 			vote.Status = "pending"
 		}
@@ -544,6 +546,31 @@ func GetPendingVotes(c *gin.Context) {
 	c.JSON(http.StatusOK, votes)
 }
 
+func GetRejectedVotes(c *gin.Context) {
+	// Reusing PendingVote struct for consistency as it contains necessary user/candidate info
+	type PendingVote struct {
+		ID            uint   `json:"id"`
+		UserName      string `json:"userName"`
+		UserNIM       string `json:"userNim"`
+		UserEmail     string `json:"userEmail"`
+		KTMImage      string `json:"ktmImage"`
+		SelfImage     string `json:"selfImage"`
+		CandidateName string `json:"candidateName"`
+		Status        string `json:"status"`
+		RejectionReason string `json:"rejectionReason"`
+	}
+	votes := []PendingVote{}
+
+	db.DB.Table("votes").
+		Select("votes.id as id, users.name as userName, users.nim as userNim, users.email as userEmail, votes.ktm_image as ktm_image, votes.self_image as self_image, COALESCE(candidates.name, 'Kotak Kosong') as candidateName, votes.status as status, votes.rejection_reason").
+		Joins("left join users on users.id = votes.user_id").
+		Joins("left join candidates on candidates.id = votes.candidate_id").
+		Where("votes.status = ?", "rejected").
+		Scan(&votes)
+
+	c.JSON(http.StatusOK, votes)
+}
+
 func SearchVotes(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
@@ -597,6 +624,7 @@ func ApproveVote(c *gin.Context) {
 	} else if req.Action == "reject" {
 		// Just mark as rejected. User CANNOT vote again.
 		vote.Status = "rejected"
+		vote.RejectionReason = "Rejected by Admin" // Default reason for manual rejection
 		db.DB.Save(&vote)
 	}
 

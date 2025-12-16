@@ -36,6 +36,7 @@ interface VoteRequest {
   ktmImage: string;
   selfImage: string;
   candidateName: string;
+  rejectionReason?: string; // Added optional field
 }
 
 interface Candidate {
@@ -70,6 +71,7 @@ const AdminPage = () => {
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]); // Data for "all_users"
   const [pendingVotes, setPendingVotes] = useState<VoteRequest[]>([]);
+  const [rejectedVotes, setRejectedVotes] = useState<VoteRequest[]>([]); // Added rejected votes state
   const [results, setResults] = useState<any[]>([]); // Using any to handle inconsistent casing from API if valid
   const [candidates, setCandidates] = useState<Candidate[]>([]);
 
@@ -115,6 +117,7 @@ const AdminPage = () => {
     if (activeTab === "mahasiswa") fetchVerifications();
     if (activeTab === "all_users") fetchAllUsers();
     if (activeTab === "verifikasi_suara") fetchPendingVotes();
+    if (activeTab === "votes_rejected") fetchRejectedVotes();
     if (activeTab === "kandidat") fetchCandidates();
     if (activeTab === "recap") fetchResults();
   };
@@ -130,6 +133,12 @@ const AdminPage = () => {
       const res = await api.get("/admin/votes/pending");
       setPendingVotes(Array.isArray(res.data) ? res.data : []);
     } catch (err) { console.error(err); setPendingVotes([]); }
+  };
+  const fetchRejectedVotes = async () => {
+    try {
+      const res = await api.get("/admin/votes/rejected");
+      setRejectedVotes(Array.isArray(res.data) ? res.data : []);
+    } catch (err) { console.error(err); setRejectedVotes([]); }
   };
   const fetchResults = async () => {
     try {
@@ -262,7 +271,7 @@ const AdminPage = () => {
         </div>
         <div className="flex gap-3">
           <div className="bg-white border border-slate-200 rounded-xl p-1 flex shadow-sm">
-            {["mahasiswa", "all_users", "verifikasi_suara", "kandidat", "recap", "settings"].map(tab => (
+            {["mahasiswa", "all_users", "verifikasi_suara", "votes_rejected", "kandidat", "recap", "settings"].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -274,6 +283,7 @@ const AdminPage = () => {
                 {tab === "mahasiswa" && "Registrations"}
                 {tab === "all_users" && "User List"}
                 {tab === "verifikasi_suara" && "Votes"}
+                {tab === "votes_rejected" && "Rejected Votes"}
                 {tab === "kandidat" && "Candidates"}
                 {tab === "recap" && "Results"}
                 {tab === "settings" && "Settings"}
@@ -525,6 +535,43 @@ const AdminPage = () => {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* --- REJECTED VOTES TAB --- */}
+      {activeTab === "votes_rejected" && (
+        <div className="space-y-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h2 className="font-bold text-xl mb-6 text-slate-900">Rejected Votes Log</h2>
+            {rejectedVotes.length === 0 ? (
+                <div className="p-12 text-center text-slate-400">
+                No rejected votes found.
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                    <tr>
+                        <th className="p-4 rounded-tl-xl w-48">NIM</th>
+                        <th className="p-4 rounded-tr-xl">Reason</th>
+                    </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                    {rejectedVotes.map((v) => (
+                        <tr key={v.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 font-mono text-slate-900 font-bold">{v.userNim}</td>
+                        <td className="p-4">
+                            <span className="text-red-600 font-medium">
+                            {v.rejectionReason || "No reason provided"}
+                            </span>
+                        </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+                </div>
+            )}
+            </div>
         </div>
       )}
 

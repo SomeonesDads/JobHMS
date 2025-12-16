@@ -122,6 +122,7 @@ func main() {
 
 	// Vote Logic V3 routes
 	r.GET("/admin/votes/pending", handlers.GetPendingVotes)
+	r.GET("/admin/votes/rejected", handlers.GetRejectedVotes) // Rejected votes
 	r.GET("/admin/votes/search", handlers.SearchVotes)  // Search votes
 	r.POST("/admin/votes/verify", handlers.ApproveVote) // Approve/Reject Vote
 
