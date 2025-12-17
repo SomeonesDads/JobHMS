@@ -161,12 +161,14 @@ func Register(c *gin.Context) {
 
 	profileLink, err := imgbb.UploadImage(profileFile)
 	if err != nil {
+		log.Printf("Register: Profile Upload Failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengunggah foto profil ke ImgBB: " + err.Error()})
 		return
 	}
 
 	ktmLink, err := imgbb.UploadImage(ktmFile)
 	if err != nil {
+		log.Printf("Register: KTM Upload Failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengunggah foto KTM ke ImgBB: " + err.Error()})
 		return
 	}
@@ -290,12 +292,14 @@ func UploadVerification(c *gin.Context) {
 
 	profileLink, err := imgbb.UploadImage(profileFile)
 	if err != nil {
+		log.Printf("UploadVerification: Profile Upload Failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload profile: " + err.Error()})
 		return
 	}
 
 	ktmLink, err := imgbb.UploadImage(ktmFile)
 	if err != nil {
+		log.Printf("UploadVerification: KTM Upload Failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload KTM: " + err.Error()})
 		return
 	}

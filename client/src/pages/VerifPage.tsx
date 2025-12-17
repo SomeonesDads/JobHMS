@@ -50,7 +50,9 @@ const VerifPage = () => {
             navigate('/vote');
         } catch (err: any) {
             console.error(err);
-            showError(err.response?.data?.error || 'Upload failed');
+            const errMsg = err.response?.data?.error || 'Upload failed';
+            alert("Error: " + errMsg); // Force alert for debugging
+            showError(errMsg);
         } finally {
             setLoading(false);
         }

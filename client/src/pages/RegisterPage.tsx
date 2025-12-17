@@ -51,7 +51,9 @@ const RegisterPage = () => {
             navigate('/login');
         } catch (err: any) {
             console.error(err);
-            error(err.response?.data?.error || 'Registration failed');
+            const errMsg = err.response?.data?.error || 'Registration failed';
+            alert("Error: " + errMsg); // Force alert for debugging
+            error(errMsg);
         } finally {
             setLoading(false);
         }
