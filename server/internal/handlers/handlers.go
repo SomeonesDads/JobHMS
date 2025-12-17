@@ -140,16 +140,7 @@ func Register(c *gin.Context) {
 		existingUser = models.User{}
 	}
 
-	var startSetting models.Setting
-	if err := db.DB.Where("key = ?", "startTime").First(&startSetting).Error; err == nil && startSetting.Value != "" {
-		startTime, err := time.ParseInLocation("2006-01-02T15:04", startSetting.Value, wibLocation) // Adjust format if strictly sent from datetime-local input
-		if err == nil {
-			if time.Now().In(wibLocation).After(startTime) {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Waktu registrasi sudah berakhir."})
-				return
-			}
-		}
-	}
+
 
 	profileFile, err1 := c.FormFile("profile_image")
 	ktmFile, err2 := c.FormFile("ktm_image")
