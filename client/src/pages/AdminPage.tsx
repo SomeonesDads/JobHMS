@@ -108,6 +108,7 @@ const AdminPage = () => {
   // Vote Success Modal State
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successCandidateName, setSuccessCandidateName] = useState("");
+  const [showResults, setShowResults] = useState(true);
 
   useEffect(() => {
     if (!user || user.Role !== "admin") {
@@ -321,58 +322,80 @@ const AdminPage = () => {
       {/* --- RECAP TAB --- */}
       {activeTab === "recap" && (
         <div className="space-y-8 animate-fade-in-up">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard
-              label="Total Votes Cast"
-              value={results.reduce((acc, curr) => acc + (curr.Count || curr.count || 0), 0)}
-              color="text-emerald-600"
-            />
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-slate-900">Election Results</h2>
+            <button
+              onClick={() => setShowResults(!showResults)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                !showResults ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {!showResults ? <><Eye size={18} /> Show Results</> : <><EyeOff size={18} /> Hide Results</>}
+            </button>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-slate-100">
-              <h3 className="font-bold text-lg text-slate-900">Live Results</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="p-5">Candidate</th>
-                    <th className="p-5 text-right">Votes</th>
-                    <th className="p-5 text-right">Percentage</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {results.map((r, idx) => {
-                    const total = results.reduce((acc, curr) => acc + (curr.Count || curr.count || 0), 0);
-                    const count = r.Count || r.count || 0;
-                    const percent = total > 0 ? ((count / total) * 100).toFixed(1) : "0";
-                    return (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-5 font-medium text-slate-900 flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden">
-                            {r.imageUrl && <img src={getImageSrc(r.imageUrl)} className="w-full h-full object-cover" />}
-                          </div>
-                          {r.Name || r.name}
-                        </td>
-                        <td className="p-5 text-right font-mono text-xl text-emerald-600 font-bold">
-                          {count}
-                        </td>
-                        <td className="p-5 text-right text-slate-500">
-                          {percent}%
-                        </td>
+          {showResults ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard
+                  label="Total Votes Cast"
+                  value={results.reduce((acc, curr) => acc + (curr.Count || curr.count || 0), 0)}
+                  color="text-emerald-600"
+                />
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="p-6 border-b border-slate-100">
+                  <h3 className="font-bold text-lg text-slate-900">Live Results</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                      <tr>
+                        <th className="p-5">Candidate</th>
+                        <th className="p-5 text-right">Votes</th>
+                        <th className="p-5 text-right">Percentage</th>
                       </tr>
-                    );
-                  })}
-                  {results.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="p-8 text-center text-slate-500">No votes recorded yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {results.map((r, idx) => {
+                        const total = results.reduce((acc, curr) => acc + (curr.Count || curr.count || 0), 0);
+                        const count = r.Count || r.count || 0;
+                        const percent = total > 0 ? ((count / total) * 100).toFixed(1) : "0";
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-5 font-medium text-slate-900 flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden">
+                                {r.imageUrl && <img src={getImageSrc(r.imageUrl)} className="w-full h-full object-cover" />}
+                              </div>
+                              {r.Name || r.name}
+                            </td>
+                            <td className="p-5 text-right font-mono text-xl text-emerald-600 font-bold">
+                              {count}
+                            </td>
+                            <td className="p-5 text-right text-slate-500">
+                              {percent}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {results.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="p-8 text-center text-slate-500">No votes recorded yet.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 flex flex-col items-center">
+              <EyeOff size={48} className="mb-4 opacity-50" />
+              <p className="text-lg font-medium text-slate-500">Results are currently hidden</p>
+              <p className="text-sm">Click "Show Results" to view the current count</p>
             </div>
-          </div>
+          )}
         </div>
       )}
 
