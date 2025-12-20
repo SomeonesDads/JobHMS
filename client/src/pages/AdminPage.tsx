@@ -104,6 +104,10 @@ const AdminPage = () => {
     endTime: ""
   });
   const [showSensitive, setShowSensitive] = useState(false);
+  
+  // Vote Success Modal State
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successCandidateName, setSuccessCandidateName] = useState("");
 
   useEffect(() => {
     if (!user || user.Role !== "admin") {
@@ -195,7 +199,8 @@ const AdminPage = () => {
       
       if (action === "approve" && vote) {
         // Show detailed success message for approval
-        alert(`Vote Approved!\n\nA vote has been successfully recorded for candidate:\n${vote.candidateName}`);
+        setSuccessCandidateName(vote.candidateName);
+        setShowSuccessModal(true);
       } else {
         success(`Vote ${action}ed successfully`);
       }
@@ -698,6 +703,31 @@ const AdminPage = () => {
           </form>
         </div>
       )}
+      {/* --- SUCCESS MODAL --- */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center transform transition-all scale-100 animate-scale-up">
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 text-emerald-600">
+               <CheckCircle2 size={40} strokeWidth={3} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">Vote Recorded!</h3>
+            <p className="text-slate-500 mb-6">The vote has been successfully verified and added to the count.</p>
+            
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 w-full mb-8">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Voted For</span>
+              <span className="text-lg font-bold text-emerald-700">{successCandidateName || "Unknown Candidate"}</span>
+            </div>
+
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-colors shadow-lg shadow-slate-200"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
     </AdminLayout>
   );
 };
